@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Citas Médicas - LaMascotApp</title>
+    <link rel="stylesheet" href="../../css/global.css">
+    <link rel="stylesheet" href="../../css/css-acceso/citas-medicas.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Montserrat:wght@700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <header class="header" role="banner">
+        <div class="container header-container">
+            <div class="logo">
+                <a href="../index.html" aria-label="Inicio de LaMascotApp">
+                    <span class="logo-text">La<span class="logo-highlight">Mascot</span>App</span>
+                </a>
+            </div>
+            <button id="mobile-menu-toggle" aria-expanded="false" aria-controls="main-menu" aria-label="Menú de navegación">
+                <span class="hamburger"></span>
+            </button>
+            <nav class="main-nav" role="navigation">
+                <ul class="nav-list" id="main-menu">
+                    <li class="nav-item"><a href="../index.html" class="nav-link">Inicio</a></li>
+                    <li class="nav-item"><a href="#" class="nav-link">Servicios</a></li>
+                    <li class="nav-item"><a href="registro.html" class="nav-link">Regístrese</a></li>
+                    <li class="nav-item"><a href="inicio-sesion.html" class="nav-link">Iniciar sesión</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <main class="main-content" role="main">
+        <section class="appointments-section" aria-labelledby="appointments-heading">
+            <div class="container appointments-container">
+                <h1 id="appointments-heading" class="section-title">Gestión de Citas Médicas</h1>
+                
+                <!-- Selector de rol (solo para demostración, en producción se detecta automáticamente) -->
+                <div class="role-selector" aria-label="Seleccione su rol">
+                    <button class="role-btn active" data-role="owner">Soy propietario</button>
+                    <button class="role-btn" data-role="receptionist">Soy recepcionista</button>
+                    <button class="role-btn" data-role="veterinarian">Soy veterinario</button>
+                </div>
+                
+                <!-- Vista para propietarios y recepcionistas: Agendar cita -->
+                <div class="appointment-form-section" id="schedule-section" aria-labelledby="schedule-heading">
+                    <h2 id="schedule-heading" class="subsection-title">Agendar nueva cita</h2>
+                    
+                    <form id="appointment-form" class="form-container">
+                        <div class="form-group">
+                            <label for="pet-select" class="form-label">Seleccione su mascota <span class="required">*</span></label>
+                            <select id="pet-select" class="form-select" required>
+                                <option value="">Seleccione una mascota</option>
+                                <option value="1">Max (Perro, Labrador)</option>
+                                <option value="2">Luna (Gato, Siamés)</option>
+                            </select>
+                            <div class="form-error" id="pet-error"></div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="vet-select" class="form-label">Seleccione veterinario <span class="required">*</span></label>
+                            <select id="vet-select" class="form-select" required>
+                                <option value="">Seleccione un veterinario</option>
+                                <option value="1">Dra. Ana Rojas</option>
+                                <option value="2">Dr. Carlos Mendoza</option>
+                            </select>
+                            <div class="form-error" id="vet-error"></div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="appointment-date" class="form-label">Fecha <span class="required">*</span></label>
+                                <input type="date" id="appointment-date" class="form-input" required>
+                                <div class="form-error" id="date-error"></div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="appointment-time" class="form-label">Hora <span class="required">*</span></label>
+                                <select id="appointment-time" class="form-select" required>
+                                    <option value="">Seleccione una hora</option>
+                                    <option value="09:00">9:00 AM</option>
+                                    <option value="09:30">9:30 AM</option>
+                                    <option value="10:00">10:00 AM</option>
+                                    <option value="10:30">10:30 AM</option>
+                                    <option value="11:00">11:00 AM</option>
+                                    <option value="11:30">11:30 AM</option>
+                                    <option value="14:00">2:00 PM</option>
+                                    <option value="14:30">2:30 PM</option>
+                                    <option value="15:00">3:00 PM</option>
+                                    <option value="15:30">3:30 PM</option>
+                                    <option value="16:00">4:00 PM</option>
+                                    <option value="16:30">4:30 PM</option>
+                                </select>
+                                <div class="form-error" id="time-error"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="appointment-reason" class="form-label">Motivo de la cita <span class="required">*</span></label>
+                            <textarea id="appointment-reason" class="form-input" rows="3" placeholder="Ej: Control anual, vacunación, consulta por síntomas..." required></textarea>
+                            <div class="form-error" id="reason-error"></div>
+                        </div>
+                        
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">Agendar cita</button>
+                        </div>
+                    </form>
+                </div>
+                
+                <!-- Vista para veterinarios: Lista de citas -->
+                <div class="today-appointments-section" id="veterinarian-section" aria-labelledby="today-appointments-heading" style="display: none;">
+                    <h2 id="today-appointments-heading" class="subsection-title">Citas de hoy</h2>
+                    
+                    <div class="appointments-list" id="appointments-list">
+                        <div class="empty-state">
+                            <div class="empty-icon">📅</div>
+                            <h3 class="empty-title">No tienes citas programadas para hoy</h3>
+                            <p class="empty-description">Las citas aparecerán aquí cuando sean programadas por los propietarios o recepcionistas.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="footer" role="contentinfo">
+        <div class="container footer-container">
+            <div class="footer-logo">
+                <a href="../index.html">
+                    <span class="logo-text">La<span class="logo-highlight">Mascot</span>App</span>
+                </a>
+                <p class="footer-description">Cuidado médico veterinario de excelencia</p>
+            </div>
+            <div class="footer-links">
+                <h3 class="footer-title">Enlaces</h3>
+                <ul class="footer-list">
+                    <li><a href="../index.html">Inicio</a></li>
+                    <li><a href="#">Servicios</a></li>
+                    <li><a href="#">Contacto</a></li>
+                    <li><a href="inicio-sesion.html">Iniciar sesión</a></li>
+                </ul>
+            </div>
+            <div class="footer-contact">
+                <h3 class="footer-title">Contacto</h3>
+                <ul class="footer-list contact-list">
+                    <li class="contact-item">
+                        <span class="contact-icon" aria-hidden="true">📍</span>
+                        <span>Calle Veterinaria 123, Bogotá</span>
+                    </li>
+                    <li class="contact-item">
+                        <span class="contact-icon" aria-hidden="true">📱</span>
+                        <span>+34 910 123 456</span>
+                    </li>
+                    <li class="contact-item">
+                        <span class="contact-icon" aria-hidden="true">✉️</span>
+                        <span>contacto@lamascotapp.co</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <div class="container">
+                <p>&copy; 2025 LaMascotApp. Desarrollado por Jairo Benavides Pasos - Aplicación veterinaria especializada en gestión de citas médicas veterinarias.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="../../js/js-acceso/citas-medicas.js"></script>
+</body>
+</html>

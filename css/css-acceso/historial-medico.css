@@ -1,0 +1,204 @@
+/* ../../css/historial-medico.css */
+.medical-history-section {
+    padding: 8rem 0 4rem;
+    margin-top: 70px;
+}
+
+.history-container {
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.back-button {
+    margin-bottom: 1.5rem;
+}
+
+.history-title {
+    font-size: 2.2rem;
+    text-align: center;
+    margin-bottom: 2rem;
+    color: var(--dark-color);
+}
+
+.section-title {
+    font-size: 1.8rem;
+    margin: 2rem 0 1.5rem;
+    position: relative;
+    padding-bottom: 0.5rem;
+}
+
+.section-title:after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 60px;
+    height: 3px;
+    background: var(--gradient-primary);
+    border-radius: 3px;
+}
+
+.patient-card {
+    background: white;
+    border-radius: var(--border-radius);
+    padding: 1.8rem;
+    box-shadow: var(--box-shadow);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+}
+
+.patient-card.empty-state {
+    background: #f8f9ff;
+    border: 2px dashed #d0d6f0;
+}
+
+.patient-info p {
+    margin: 0.8rem 0;
+    font-size: 1.1rem;
+    line-height: 1.5;
+    color: var(--gray-color);
+}
+
+.patient-info strong {
+    color: var(--dark-color);
+}
+
+.patient-icon {
+    font-size: 4rem;
+    color: var(--primary-color);
+    opacity: 0.3;
+}
+
+.empty-container {
+    background: white;
+    border-radius: var(--border-radius);
+    padding: 2rem;
+    box-shadow: var(--box-shadow);
+    text-align: center;
+}
+
+.empty-icon {
+    font-size: 3rem;
+    color: var(--primary-color);
+    opacity: 0.5;
+    margin-bottom: 1rem;
+}
+
+.empty-title {
+    font-size: 1.4rem;
+    color: var(--dark-color);
+    margin-bottom: 0.5rem;
+}
+
+.empty-description {
+    color: var(--gray-color);
+    max-width: 600px;
+    margin: 0 auto;
+    line-height: 1.6;
+}
+
+.consultations-list {
+    margin-bottom: 2rem;
+}
+
+.vaccinations-container {
+    background: white;
+    border-radius: var(--border-radius);
+    padding: 1.8rem;
+    box-shadow: var(--box-shadow);
+}
+
+.vaccinations-container h3 {
+    font-size: 1.4rem;
+    margin-bottom: 1rem;
+    color: var(--dark-color);
+}
+
+.table-container {
+    overflow-x: auto;
+    width: 100%;
+}
+
+.vaccines-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 600px;
+}
+
+.vaccines-table th,
+.vaccines-table td {
+    padding: 0.9rem;
+    text-align: left;
+    border-bottom: 1px solid #eaeaea;
+}
+
+.vaccines-table th {
+    background: #f8f9ff;
+    font-weight: 600;
+    color: var(--dark-color);
+}
+
+.empty-table-cell {
+    text-align: center;
+    padding: 2rem;
+    color: var(--gray-color);
+    font-style: italic;
+}
+
+.next-vaccine {
+    padding: 1rem;
+    background: #f8f9ff;
+    border-radius: 8px;
+    margin-top: 1.5rem;
+    text-align: center;
+}
+
+.next-vaccine p {
+    margin: 0;
+    color: var(--gray-color);
+    font-style: italic;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .patient-card {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .patient-icon {
+        margin-top: 1rem;
+    }
+    
+    .history-title {
+        font-size: 1.8rem;
+    }
+    
+    .section-title {
+        font-size: 1.5rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .medical-history-section {
+        padding: 6rem 0 3rem;
+    }
+    
+    .history-title {
+        font-size: 1.6rem;
+    }
+    
+    .section-title {
+        font-size: 1.3rem;
+    }
+    
+    .patient-card {
+        padding: 1.2rem;
+    }
+    
+    .vaccinations-container {
+        padding: 1.2rem;
+    }
+}

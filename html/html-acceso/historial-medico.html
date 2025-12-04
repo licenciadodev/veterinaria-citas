@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Historial Médico - LaMascotApp</title>
+    <link rel="stylesheet" href="../../css/global.css">
+    <link rel="stylesheet" href="../../css/css-acceso/historial-medico.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Montserrat:wght@700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <header class="header" role="banner">
+        <div class="container header-container">
+            <div class="logo">
+                <a href="../index.html" aria-label="Inicio de LaMascotApp">
+                    <span class="logo-text">La<span class="logo-highlight">Mascot</span>App</span>
+                </a>
+            </div>
+            <button id="mobile-menu-toggle" aria-expanded="false" aria-controls="main-menu" aria-label="Menú de navegación">
+                <span class="hamburger"></span>
+            </button>
+            <nav class="main-nav" role="navigation">
+                <ul class="nav-list" id="main-menu">
+                    <li class="nav-item"><a href="../index.html" class="nav-link">Inicio</a></li>
+                    <li class="nav-item"><a href="#" class="nav-link">Servicios</a></li>
+                    <li class="nav-item"><a href="registro.html" class="nav-link">Regístrese</a></li>
+                    <li class="nav-item"><a href="inicio-sesion.html" class="nav-link">Iniciar sesión</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <main class="main-content" role="main">
+        <section class="medical-history-section" aria-labelledby="history-heading">
+            <div class="container history-container">
+                <div class="back-button">
+                    <a href="../html-perfiles/dashboard-veterinario.html" class="btn btn-outline">&larr; Volver al panel</a>
+                </div>
+                
+                <h1 id="history-heading" class="history-title">Historial Médico</h1>
+                
+                <!-- Datos del paciente -->
+                <section class="patient-data-section" aria-labelledby="patient-data-heading">
+                    <h2 id="patient-data-heading" class="section-title">Datos del Paciente</h2>
+                    <div class="patient-card empty-state">
+                        <div class="patient-info">
+                            <p><strong>Nombre de la mascota:</strong> <span id="pet-name">-</span></p>
+                            <p><strong>Nombre del propietario:</strong> <span id="owner-name">-</span></p>
+                            <p><strong>Especie y raza:</strong> <span id="pet-species-breed">-</span></p>
+                            <p><strong>Edad:</strong> <span id="pet-age">-</span></p>
+                        </div>
+                        <div class="patient-icon">
+                            <span>🐾</span>
+                        </div>
+                    </div>
+                </section>
+                
+                <!-- Consultas médicas -->
+                <section class="consultations-section" aria-labelledby="consultations-heading">
+                    <h2 id="consultations-heading" class="section-title">Consultas Médicas</h2>
+                    <div class="consultations-list empty-container" id="consultations-list">
+                        <div class="empty-state">
+                            <div class="empty-icon">📋</div>
+                            <h3 class="empty-title">No hay consultas médicas registradas</h3>
+                            <p class="empty-description">No se han realizado consultas médicas para esta mascota aún. Las consultas aparecerán aquí después de ser registradas por el veterinario.</p>
+                        </div>
+                    </div>
+                </section>
+                
+                <!-- Vacunación -->
+                <section class="vaccinations-section" aria-labelledby="vaccinations-heading">
+                    <h2 id="vaccinations-heading" class="section-title">Vacunación</h2>
+                    <div class="vaccinations-container">
+                        <h3>Vacunas aplicadas</h3>
+                        <div class="table-container">
+                            <table class="vaccines-table">
+                                <thead>
+                                    <tr>
+                                        <th>Vacuna</th>
+                                        <th>Fecha</th>
+                                        <th>Veterinario</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="vaccines-table-body">
+                                    <tr>
+                                        <td colspan="3" class="empty-table-cell">
+                                            <div class="empty-state">
+                                                <p>No hay vacunas registradas para esta mascota.</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <div class="next-vaccine">
+                            <h3>Próxima vacuna pendiente</h3>
+                            <p id="next-vaccine-info">-</p>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </section>
+    </main>
+
+    <footer class="footer" role="contentinfo">
+        <div class="container footer-container">
+            <div class="footer-logo">
+                <a href="../index.html">
+                    <span class="logo-text">La<span class="logo-highlight">Mascot</span>App</span>
+                </a>
+                <p class="footer-description">Cuidado médico veterinario de excelencia</p>
+            </div>
+            <div class="footer-links">
+                <h3 class="footer-title">Enlaces</h3>
+                <ul class="footer-list">
+                    <li><a href="../index.html">Inicio</a></li>
+                    <li><a href="#">Servicios</a></li>
+                    <li><a href="#">Contacto</a></li>
+                    <li><a href="inicio-sesion.html">Iniciar sesión</a></li>
+                </ul>
+            </div>
+            <div class="footer-contact">
+                <h3 class="footer-title">Contacto</h3>
+                <ul class="footer-list contact-list">
+                    <li class="contact-item">
+                        <span class="contact-icon" aria-hidden="true">📍</span>
+                        <span>Calle Veterinaria 123, Bogotá</span>
+                    </li>
+                    <li class="contact-item">
+                        <span class="contact-icon" aria-hidden="true">📱</span>
+                        <span>+34 910 123 456</span>
+                    </li>
+                    <li class="contact-item">
+                        <span class="contact-icon" aria-hidden="true">✉️</span>
+                        <span>contacto@lamascotapp.co</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <div class="container">
+                <p>&copy; 2025 LaMascotApp. Desarrollado por Jairo Benavides Pasos - Aplicación veterinaria especializada en gestión de citas médicas veterinarias.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="../../js/js-acceso/historial-medico.js"></script>
+</body>
+</html>

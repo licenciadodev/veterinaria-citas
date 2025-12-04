@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel Recepcionista - LaMascotApp</title>
+    <link rel="stylesheet" href="../../css/global.css">
+    <link rel="stylesheet" href="../../css/css-perfiles/dashboard-recepcionista.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Montserrat:wght@700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <header class="header" role="banner">
+        <div class="container header-container">
+            <div class="logo">
+                <a href="../index.html" aria-label="Inicio de LaMascotApp">
+                    <span class="logo-text">La<span class="logo-highlight">Mascot</span>App</span>
+                </a>
+            </div>
+            <button id="mobile-menu-toggle" aria-expanded="false" aria-controls="main-menu" aria-label="Menú de navegación">
+                <span class="hamburger"></span>
+            </button>
+            <nav class="main-nav" role="navigation">
+                <ul class="nav-list" id="main-menu">
+                    <li class="nav-item"><a href="#" class="nav-link">Panel Principal</a></li>
+                    <li class="nav-item"><a href="#appointments-heading" class="nav-link">Gestión de Citas</a></li>
+                    <li class="nav-item"><a href="#users-heading" class="nav-link">Gestión de Usuarios</a></li>
+                    <li class="nav-item"><a href="../../index.html" class="nav-link">Cerrar Sesión</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <main class="main-content" role="main">
+        <section class="dashboard-section" aria-labelledby="dashboard-heading">
+            <div class="container dashboard-container">
+                <h1 id="dashboard-heading" class="dashboard-title">Panel de Recepcionista</h1>
+                
+                <!-- Resumen operativo -->
+                <section class="summary-section" aria-labelledby="summary-heading">
+                    <h2 id="summary-heading" class="section-title">Resumen Operativo</h2>
+                    <div class="summary-content">
+                        <div class="greeting-card">
+                            <h3 class="greeting-text">¡Hola, <span id="user-name">Recepcionista</span>!</h3>
+                            <p class="current-datetime" id="current-datetime">Cargando fecha y hora...</p>
+                        </div>
+                        
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <div class="stat-icon">📅</div>
+                                <div class="stat-content">
+                                    <span class="stat-value" id="today-appointments">0</span>
+                                    <span class="stat-label">Citas hoy</span>
+                                </div>
+                            </div>
+                            
+                            <div class="stat-card">
+                                <div class="stat-icon">⏳</div>
+                                <div class="stat-content">
+                                    <span class="stat-value" id="pending-appointments">0</span>
+                                    <span class="stat-label">Citas pendientes</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+                
+                <!-- Gestión de citas -->
+                <section class="appointments-section" aria-labelledby="appointments-heading">
+                    <h2 id="appointments-heading" class="section-title">Gestión de Citas</h2>
+                    
+                    <div class="calendar-container">
+                        <div class="calendar-header">
+                            <button class="btn btn-outline calendar-prev">&lt;</button>
+                            <h3 class="calendar-title" id="calendar-month">Mayo 2025</h3>
+                            <button class="btn btn-outline calendar-next">&gt;</button>
+                        </div>
+                        <div class="calendar-grid" id="calendar-grid">
+                            <!-- El calendario se generará con JavaScript -->
+                        </div>
+                    </div>
+                    
+                    <div class="today-appointments">
+                        <h3 class="sub-title">Citas de hoy</h3>
+                        <div class="appointments-list" id="today-appointments-list">
+                            <div class="empty-state">
+                                <div class="empty-icon">📅</div>
+                                <h3 class="empty-title">No hay citas programadas para hoy</h3>
+                                <p class="empty-description">Puedes agendar nuevas citas o revisar citas futuras en el calendario.</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="appointment-actions">
+                        <button class="btn btn-primary" id="schedule-appointment-btn">+ Agendar nueva cita</button>
+                    </div>
+                </section>
+                
+                <!-- Gestión de usuarios -->
+                <section class="users-section" aria-labelledby="users-heading">
+                    <h2 id="users-heading" class="section-title">Gestión de Usuarios</h2>
+                    
+                    <div class="search-container">
+                        <div class="search-box">
+                            <input type="text" id="user-search" class="form-input" placeholder="Buscar por nombre o teléfono...">
+                            <button class="search-btn">🔍</button>
+                        </div>
+                        <button class="btn btn-secondary" id="register-user-btn">+ Registrar nuevo usuario</button>
+                    </div>
+                    
+                    <div class="users-results" id="users-results">
+                        <div class="empty-state">
+                            <div class="empty-icon">👥</div>
+                            <h3 class="empty-title">No se encontraron usuarios</h3>
+                            <p class="empty-description">Utiliza el buscador para encontrar propietarios o regístralos nuevos.</p>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </section>
+        
+        <!-- Modal para agendar cita -->
+        <div id="schedule-appointment-modal" class="modal" aria-hidden="true" role="dialog" aria-labelledby="schedule-modal-title">
+            <div class="modal-content" role="document">
+                <button id="close-schedule-modal" class="modal-close" aria-label="Cerrar modal">&times;</button>
+                <h2 id="schedule-modal-title" class="modal-title">Agendar nueva cita</h2>
+                
+                <form id="appointment-form">
+                    <div class="form-group">
+                        <label for="owner-search" class="form-label">Buscar propietario <span class="required">*</span></label>
+                        <input type="text" id="owner-search" class="form-input" placeholder="Nombre o teléfono del propietario">
+                        <div class="search-results" id="owner-search-results"></div>
+                        <input type="hidden" id="selected-owner-id" name="owner-id">
+                        <div class="form-error" id="owner-error"></div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="pet-select" class="form-label">Seleccionar mascota <span class="required">*</span></label>
+                        <select id="pet-select" class="form-select" disabled>
+                            <option value="">Seleccione una mascota</option>
+                        </select>
+                        <div class="form-error" id="pet-error"></div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="vet-select" class="form-label">Veterinario <span class="required">*</span></label>
+                            <select id="vet-select" class="form-select" required>
+                                <option value="">Seleccione un veterinario</option>
+                            </select>
+                            <div class="form-error" id="vet-error"></div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="appointment-date" class="form-label">Fecha <span class="required">*</span></label>
+                            <input type="date" id="appointment-date" class="form-input" required>
+                            <div class="form-error" id="date-error"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="appointment-time" class="form-label">Hora <span class="required">*</span></label>
+                        <input type="time" id="appointment-time" class="form-input" required>
+                        <div class="form-error" id="time-error"></div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="appointment-reason" class="form-label">Motivo <span class="required">*</span></label>
+                        <textarea id="appointment-reason" class="form-input" rows="3" required></textarea>
+                        <div class="form-error" id="reason-error"></div>
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">Agendar cita</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Modal para registrar usuario -->
+        <div id="register-user-modal" class="modal" aria-hidden="true" role="dialog" aria-labelledby="register-modal-title">
+            <div class="modal-content" role="document">
+                <button id="close-register-modal" class="modal-close" aria-label="Cerrar modal">&times;</button>
+                <h2 id="register-modal-title" class="modal-title">Registrar nuevo propietario</h2>
+                
+                <form id="user-register-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="new-user-names" class="form-label">Nombres <span class="required">*</span></label>
+                            <input type="text" id="new-user-names" class="form-input" required>
+                            <div class="form-error" id="new-user-names-error"></div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="new-user-surnames" class="form-label">Apellidos <span class="required">*</span></label>
+                            <input type="text" id="new-user-surnames" class="form-input" required>
+                            <div class="form-error" id="new-user-surnames-error"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="new-user-email" class="form-label">Correo electrónico <span class="required">*</span></label>
+                            <input type="email" id="new-user-email" class="form-input" required>
+                            <div class="form-error" id="new-user-email-error"></div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="new-user-phone" class="form-label">Teléfono <span class="required">*</span></label>
+                            <input type="tel" id="new-user-phone" class="form-input" required>
+                            <div class="form-error" id="new-user-phone-error"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">Registrar propietario</button>
+                        <div class="form-note">Se enviará un correo con instrucciones para completar el registro y crear contraseña.</div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <footer class="footer" role="contentinfo">
+        <div class="container footer-container">
+            <div class="footer-logo">
+                <a href="../../index.html">
+                    <span class="logo-text">La<span class="logo-highlight">Mascot</span>App</span>
+                </a>
+                <p class="footer-description">Cuidado médico veterinario de excelencia</p>
+            </div>
+            <div class="footer-links">
+                <h3 class="footer-title">Enlaces</h3>
+                <ul class="footer-list">
+                    <li><a href="../../index.html">Inicio</a></li>
+                    <li><a href="../../servicios.html">Servicios</a></li>
+                    <li><a href="../../contacto.html">Contacto</a></li>
+                    <li><a href="../../inicio-sesion.html">Iniciar sesión</a></li>
+                </ul>
+            </div>
+            <div class="footer-contact">
+                <h3 class="footer-title">Contacto</h3>
+                <ul class="footer-list contact-list">
+                    <li class="contact-item">
+                        <span class="contact-icon" aria-hidden="true">📍</span>
+                        <span>Calle Veterinaria 123, Bogotá</span>
+                    </li>
+                    <li class="contact-item">
+                        <span class="contact-icon" aria-hidden="true">📱</span>
+                        <span>+34 910 123 456</span>
+                    </li>
+                    <li class="contact-item">
+                        <span class="contact-icon" aria-hidden="true">✉️</span>
+                        <span>contacto@lamascotapp.co</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <div class="container">
+                <p>&copy; 2025 LaMascotApp. Desarrollado por Jairo Benavides Pasos - Aplicación veterinaria especializada en gestión de citas médicas veterinarias.</p>
+            </div>
+        </div>
+    </footer>
+    
+    <script src="../../js/js-perfiles/dashboard-recepcionista.js"></script> 
+</body>
+</html>

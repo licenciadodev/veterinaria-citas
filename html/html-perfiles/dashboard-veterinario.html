@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel Veterinario - LaMascotApp</title>
+    <link rel="stylesheet" href="../../css/global.css">
+    <link rel="stylesheet" href="../../css/css-perfiles/dashboard-veterinario.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Montserrat:wght@700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <header class="header" role="banner">
+        <div class="container header-container">
+            <div class="logo">
+                <a href="../../index.html" aria-label="Inicio de LaMascotApp">
+                    <span class="logo-text">La<span class="logo-highlight">Mascot</span>App</span>
+                </a>
+            </div>
+            <button id="mobile-menu-toggle" aria-expanded="false" aria-controls="main-menu" aria-label="Menú de navegación">
+                <span class="hamburger"></span>
+            </button>
+            <nav class="main-nav" role="navigation">
+                <ul class="nav-list" id="main-menu">
+                    <li class="nav-item"><a href="#" class="nav-link">Panel Principal</a></li>
+                    <li class="nav-item"><a href="#agenda-heading" class="nav-link">Agenda</a></li>
+                    <li class="nav-item"><a href="#history-heading" class="nav-link">Historial Clínico</a></li>
+                    <li class="nav-item"><a href="../../index.html" class="nav-link">Cerrar Sesión</a></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <main class="main-content" role="main">
+        <section class="dashboard-section" aria-labelledby="dashboard-heading">
+            <div class="container dashboard-container">
+                <h1 id="dashboard-heading" class="dashboard-title">Panel del Veterinario</h1>
+                
+                <!-- Resumen profesional -->
+                <section class="summary-section" aria-labelledby="summary-heading">
+                    <h2 id="summary-heading" class="section-title">Resumen Profesional</h2>
+                    <div class="summary-content">
+                        <div class="greeting-card">
+                            <h3 class="greeting-text">¡Hola, <span id="user-name">Dr. Veterinario</span>!</h3>
+                            <p class="current-datetime" id="current-datetime">Cargando fecha y hora...</p>
+                        </div>
+                        
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <div class="stat-icon">📅</div>
+                                <div class="stat-content">
+                                    <span class="stat-value" id="today-appointments">0</span>
+                                    <span class="stat-label">Citas hoy</span>
+                                </div>
+                            </div>
+                            
+                            <div class="stat-card">
+                                <div class="stat-icon">⏳</div>
+                                <div class="stat-content">
+                                    <span class="stat-value" id="pending-appointments">0</span>
+                                    <span class="stat-label">Citas pendientes</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+                
+                <!-- Agenda diaria -->
+                <section class="agenda-section" aria-labelledby="agenda-heading">
+                    <h2 id="agenda-heading" class="section-title">Agenda Diaria</h2>
+                    
+                    <div class="calendar-container">
+                        <div class="calendar-header">
+                            <button class="btn btn-outline calendar-prev">&lt;</button>
+                            <h3 class="calendar-title" id="calendar-date">Lunes, 15 de Mayo de 2025</h3>
+                            <button class="btn btn-outline calendar-next">&gt;</button>
+                            <div class="view-toggle">
+                                <button class="view-btn active" data-view="daily">Día</button>
+                                <button class="view-btn" data-view="weekly">Semana</button>
+                            </div>
+                        </div>
+                        <div class="daily-schedule" id="daily-schedule">
+                            <!-- Las citas se cargarán con JavaScript -->
+                            <div class="empty-state">
+                                <div class="empty-icon">📅</div>
+                                <h3 class="empty-title">No hay citas programadas para hoy</h3>
+                                <p class="empty-description">Puedes revisar citas futuras o buscar pacientes en el historial clínico.</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+                
+                <!-- Historial clínico -->
+                <section class="clinical-history-section" aria-labelledby="history-heading">
+                    <h2 id="history-heading" class="section-title">Historial Clínico</h2>
+                    
+                    <div class="search-container">
+                        <div class="search-filters">
+                            <input type="text" id="patient-search" class="form-input" placeholder="Buscar paciente o propietario...">
+                            
+                            <select id="species-filter" class="form-select">
+                                <option value="">Todas las especies</option>
+                                <option value="perro">Perro</option>
+                                <option value="gato">Gato</option>
+                                <option value="ave">Ave</option>
+                                <option value="roedor">Roedor</option>
+                                <option value="reptil">Reptil</option>
+                            </select>
+                            
+                            <select id="condition-filter" class="form-select">
+                                <option value="">Cualquier condición</option>
+                                <option value="alergias">Alergias</option>
+                                <option value="diabetes">Diabetes</option>
+                                <option value="artritis">Artritis</option>
+                                <option value="infeccion">Infección</option>
+                            </select>
+                            
+                            <button class="btn btn-primary search-btn">Buscar</button>
+                        </div>
+                    </div>
+                    
+                    <div class="search-results" id="search-results">
+                        <div class="empty-state">
+                            <div class="empty-icon">🔍</div>
+                            <h3 class="empty-title">No se encontraron pacientes</h3>
+                            <p class="empty-description">Utiliza los filtros para encontrar registros clínicos de pacientes.</p>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </section>
+        
+        <!-- Modal para historial completo -->
+        <div id="medical-history-modal" class="modal" aria-hidden="true" role="dialog" aria-labelledby="history-modal-title">
+            <div class="modal-content" role="document">
+                <button id="close-history-modal" class="modal-close" aria-label="Cerrar modal">&times;</button>
+                <h2 id="history-modal-title" class="modal-title">Historial Médico Completo</h2>
+                
+                <div class="patient-header">
+                    <div class="patient-icon" id="modal-pet-icon">🐶</div>
+                    <div class="patient-info">
+                        <h3 id="modal-pet-name" class="patient-name">Nombre de la Mascota</h3>
+                        <p id="modal-owner-name" class="owner-name">Propietario: Carlos Martínez</p>
+                        <p id="modal-pet-details" class="pet-details">Perro - Labrador - 3 años</p>
+                    </div>
+                </div>
+                
+                <div class="history-tabs">
+                    <button class="tab-btn active" data-tab="consultations">Consultas</button>
+                    <button class="tab-btn" data-tab="vaccines">Vacunas</button>
+                    <button class="tab-btn" data-tab="medications">Medicamentos</button>
+                </div>
+                
+                <div class="tab-content active" id="consultations-tab">
+                    <div class="consultation-item">
+                        <div class="consultation-date">15/05/2025</div>
+                        <div class="consultation-content">
+                            <h4>Motivo: Control anual</h4>
+                            <p><strong>Síntomas:</strong> Ninguno reportado</p>
+                            <p><strong>Diagnóstico:</strong> Saludable, buen estado físico</p>
+                            <p><strong>Tratamiento:</strong> Refuerzo de vacuna antirrábica</p>
+                            <p><strong>Recomendaciones:</strong> Mantener dieta balanceada y ejercicio diario</p>
+                            <p><strong>Próxima cita:</strong> 15/11/2025</p>
+                        </div>
+                    </div>
+                    
+                    <div class="consultation-item">
+                        <div class="consultation-date">20/03/2025</div>
+                        <div class="consultation-content">
+                            <h4>Motivo: Vacunación</h4>
+                            <p><strong>Síntomas:</strong> Ninguno</p>
+                            <p><strong>Diagnóstico:</strong> Apto para vacunación</p>
+                            <p><strong>Tratamiento:</strong> Vacuna polivalente administrada</p>
+                            <p><strong>Recomendaciones:</strong> Vigilar zona de aplicación por 24h</p>
+                            <p><strong>Próxima cita:</strong> 15/05/2025</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="tab-content" id="vaccines-tab" style="display: none;">
+                    <table class="history-table">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Vacuna</th>
+                                <th>Dosis</th>
+                                <th>Próxima</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>15/05/2025</td>
+                                <td>Antirrábica</td>
+                                <td>1ml</td>
+                                <td>15/05/2026</td>
+                            </tr>
+                            <tr>
+                                <td>20/03/2025</td>
+                                <td>Polivalente</td>
+                                <td>1ml</td>
+                                <td>20/03/2026</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="tab-content" id="medications-tab" style="display: none;">
+                    <table class="history-table">
+                        <thead>
+                            <tr>
+                                <th>Medicamento</th>
+                                <th>Dosis</th>
+                                <th>Frecuencia</th>
+                                <th>Período</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Antiparasitario</td>
+                                <td>1 pastilla</td>
+                                <td>Mensual</td>
+                                <td>Continuo</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Modal para registrar consulta -->
+        <div id="consultation-modal" class="modal" aria-hidden="true" role="dialog" aria-labelledby="consultation-modal-title">
+            <div class="modal-content" role="document">
+                <button id="close-consultation-modal" class="modal-close" aria-label="Cerrar modal">&times;</button>
+                <h2 id="consultation-modal-title" class="modal-title">Registrar Nueva Consulta</h2>
+                
+                <form id="consultation-form">
+                    <input type="hidden" id="consultation-pet-id" name="pet-id">
+                    
+                    <div class="form-group">
+                        <label for="consultation-date" class="form-label">Fecha de consulta <span class="required">*</span></label>
+                        <input type="date" id="consultation-date" class="form-input" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="symptoms" class="form-label">Síntomas observados <span class="required">*</span></label>
+                        <textarea id="symptoms" class="form-input" rows="3" required></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="diagnosis" class="form-label">Diagnóstico <span class="required">*</span></label>
+                        <textarea id="diagnosis" class="form-input" rows="3" required></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="treatment" class="form-label">Tratamiento prescrito <span class="required">*</span></label>
+                        <textarea id="treatment" class="form-input" rows="3" required></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="medications" class="form-label">Medicamentos</label>
+                        <div id="medications-container">
+                            <div class="medication-row">
+                                <input type="text" class="form-input medication-name" placeholder="Nombre del medicamento" required>
+                                <input type="text" class="form-input medication-dose" placeholder="Dosis" required>
+                                <input type="text" class="form-input medication-frequency" placeholder="Frecuencia" required>
+                                <button type="button" class="btn btn-outline add-medication">+</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="recommendations" class="form-label">Recomendaciones para el propietario <span class="required">*</span></label>
+                        <textarea id="recommendations" class="form-input" rows="3" required></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="next-appointment" class="form-label">Próxima cita recomendada</label>
+                        <input type="date" id="next-appointment" class="form-input">
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">Guardar consulta</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <footer class="footer" role="contentinfo">
+        <div class="container footer-container">
+            <div class="footer-logo">
+                <a href="../../index.html">
+                    <span class="logo-text">La<span class="logo-highlight">Mascot</span>App</span>
+                </a>
+                <p class="footer-description">Cuidado médico veterinario de excelencia</p>
+            </div>
+            <div class="footer-links">
+                <h3 class="footer-title">Enlaces</h3>
+                <ul class="footer-list">
+                    <li><a href="../../index.html">Inicio</a></li>
+                    <li><a href="../../servicios.html">Servicios</a></li>
+                    <li><a href="../../contacto.html">Contacto</a></li>
+                    <li><a href="../../inicio-sesion.html">Iniciar sesión</a></li>
+                </ul>
+            </div>
+            <div class="footer-contact">
+                <h3 class="footer-title">Contacto</h3>
+                <ul class="footer-list contact-list">
+                    <li class="contact-item">
+                        <span class="contact-icon" aria-hidden="true">📍</span>
+                        <span>Calle Veterinaria 123, Bogotá</span>
+                    </li>
+                    <li class="contact-item">
+                        <span class="contact-icon" aria-hidden="true">📱</span>
+                        <span>+34 910 123 456</span>
+                    </li>
+                    <li class="contact-item">
+                        <span class="contact-icon" aria-hidden="true">✉️</span>
+                        <span>contacto@lamascotapp.co</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <div class="container">
+                <p>&copy; 2025 LaMascotApp. Desarrollado por Jairo Benavides Pasos - Aplicación veterinaria especializada en gestión de citas médicas veterinarias.</p>
+            </div>
+        </div>
+    </footer>
+    
+    <script src="../../js/js-perfiles/dashboard-veterinario.js"></script> 
+</body>
+</html>
