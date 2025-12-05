@@ -33,7 +33,7 @@ app.use(express.json());
 
 // ⭐⭐ CONFIGURACIÓN CRÍTICA ⭐⭐
 // Sirve TODO el frontend desde la raíz
-app.use(express.static(frontendPath));
+app.use(express.static(htmlPath));
 
 // =============== CONEXIÓN BD ===============
 const db = mysql.createConnection({
