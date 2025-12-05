@@ -1,17 +1,55 @@
-// backend/server.js - VERSIÓN SIMPLIFICADA
+// backend/server.js - VERSIÓN CORREGIDA
 const express = require('express');
 const mysql = require('mysql2');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');  // Agregar esto
 
 const app = express();
 
-// Configuración básica
-app.use(cors());
-app.use(express.json());
-app.use(express.static(path.join(__dirname, '../frontend')));
+// =============== VERIFICACIÓN DE RUTAS ===============
+console.log('🔍 Verificando rutas...');
+console.log('📍 __dirname:', __dirname);
+console.log('📍 Ruta actual del server.js:', __filename);
 
-// Conexión a la base de datos
+// Ruta CORRECTA al frontend
+const frontendPath = path.join(__dirname, '../../frontend');
+const indexPath = path.join(frontendPath, 'index.html');
+
+console.log('📁 Buscando frontend en:', frontendPath);
+console.log('📄 Buscando index.html en:', indexPath);
+
+if (fs.existsSync(indexPath)) {
+    console.log('✅ index.html ENCONTRADO en:', indexPath);
+} else {
+    console.log('❌ index.html NO encontrado. Revisando estructura...');
+    
+    // Listar lo que sí existe
+    const parentDir = path.join(__dirname, '..');
+    console.log('📂 Contenido del directorio padre:');
+    try {
+        const files = fs.readdirSync(parentDir);
+        files.forEach(file => {
+            const filePath = path.join(parentDir, file);
+            const isDir = fs.statSync(filePath).isDirectory();
+            console.log(`  ${isDir ? '📁' : '📄'} ${file}`);
+        });
+    } catch (err) {
+        console.log('Error leyendo directorio:', err.message);
+    }
+}
+
+// =============== CONFIGURACIÓN ===============
+app.use(cors({
+    origin: ['http://localhost:5500', 'http://localhost:3000'],
+    credentials: true
+}));
+app.use(express.json());
+
+// ⭐⭐ RUTA ESTÁTICA CORREGIDA ⭐⭐
+app.use(express.static(frontendPath));
+
+// =============== CONEXIÓN A BD ===============
 const db = mysql.createConnection({
     host: 'localhost',
     user: 'root',
@@ -24,27 +62,41 @@ db.connect((err) => {
         console.error('❌ Error conectando a MySQL:', err);
         return;
     }
-    console.log('✅ Conectado a MySQL');
+    console.log('✅ Conectado a MySQL - Base de datos: veterinaria_db');
 });
 
-// =============== RUTAS SIMPLES PARA PRUEBA ===============
-
-// 1. Ruta de prueba
+// =============== RUTAS DE API ===============
 app.get('/api/test', (req, res) => {
     res.json({ message: '¡El servidor funciona!' });
 });
 
-// 2. Login básico (para probar)
+app.get('/api/usuarios', (req, res) => {
+    db.query('SELECT id, nombre, email, rol FROM usuarios', (err, results) => {
+        if (err) {
+            console.error('Error obteniendo usuarios:', err);
+            return res.status(500).json({ error: 'Error del servidor' });
+        }
+        res.json(results);
+    });
+});
+
+app.get('/api/citas', (req, res) => {
+    db.query('SELECT * FROM citas', (err, results) => {
+        if (err) {
+            console.error('Error obteniendo citas:', err);
+            return res.status(500).json({ error: 'Error del servidor' });
+        }
+        res.json(results);
+    });
+});
+
 app.post('/api/login', (req, res) => {
     const { email, password } = req.body;
-    
-    console.log('Intento de login:', email);
     
     if (!email || !password) {
         return res.status(400).json({ error: 'Email y contraseña requeridos' });
     }
     
-    // Buscar usuario
     db.query('SELECT * FROM usuarios WHERE email = ?', [email], (err, results) => {
         if (err) {
             console.error('Error en login:', err);
@@ -57,11 +109,9 @@ app.post('/api/login', (req, res) => {
         
         const user = results[0];
         
-        // Verificar contraseña (en producción usar bcrypt)
-        if (password === '123456') { // Solo para prueba
-            // Eliminar password de la respuesta
+        // Contraseña de prueba: 123456
+        if (password === '123456') {
             delete user.password;
-            
             res.json({
                 success: true,
                 message: 'Login exitoso',
@@ -73,29 +123,6 @@ app.post('/api/login', (req, res) => {
     });
 });
 
-// 3. Obtener usuarios (solo para prueba)
-app.get('/api/usuarios', (req, res) => {
-    db.query('SELECT id, nombre, email, rol FROM usuarios', (err, results) => {
-        if (err) {
-            console.error('Error obteniendo usuarios:', err);
-            return res.status(500).json({ error: 'Error del servidor' });
-        }
-        res.json(results);
-    });
-});
-
-// 4. Obtener citas
-app.get('/api/citas', (req, res) => {
-    db.query('SELECT * FROM citas', (err, results) => {
-        if (err) {
-            console.error('Error obteniendo citas:', err);
-            return res.status(500).json({ error: 'Error del servidor' });
-        }
-        res.json(results);
-    });
-});
-
-// 5. Crear cita simple
 app.post('/api/citas', (req, res) => {
     const { fecha, hora, motivo, nombre_mascota, id_veterinario } = req.body;
     
@@ -108,7 +135,7 @@ app.post('/api/citas', (req, res) => {
         hora,
         motivo,
         nombre_mascota: nombre_mascota || 'Sin nombre',
-        id_veterinario: id_veterinario || 3, // Dr. Carlos por defecto
+        id_veterinario: id_veterinario || 3,
         estado: 'activa'
     };
     
@@ -126,19 +153,20 @@ app.post('/api/citas', (req, res) => {
     });
 });
 
-// 6. Ruta para servir el frontend
+// =============== RUTA CATCH-ALL CORREGIDA ===============
 app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../frontend/index.html'));
+    res.sendFile(path.join(frontendPath, 'index.html'));
 });
 
-// Iniciar servidor
+// =============== INICIAR SERVIDOR ===============
 const PORT = 3000;
 app.listen(PORT, () => {
-    console.log(`🚀 Servidor ejecutándose en http://localhost:${PORT}`);
+    console.log(`\n🚀 Servidor ejecutándose en http://localhost:${PORT}`);
     console.log(`📊 Prueba estas rutas:`);
     console.log(`   GET  http://localhost:${PORT}/api/test`);
     console.log(`   GET  http://localhost:${PORT}/api/usuarios`);
     console.log(`   GET  http://localhost:${PORT}/api/citas`);
     console.log(`   POST http://localhost:${PORT}/api/login`);
     console.log(`   POST http://localhost:${PORT}/api/citas`);
+    console.log(`\n🌐 Frontend disponible en: http://localhost:${PORT}`);
 });
