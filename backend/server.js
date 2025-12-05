@@ -1,55 +1,70 @@
-// backend/server.js - VERSIÓN CORREGIDA
+// backend/server.js
 const express = require('express');
 const mysql = require('mysql2');
 const cors = require('cors');
 const path = require('path');
-const fs = require('fs');  // Agregar esto
+const fs = require('fs');
 
 const app = express();
 
-// =============== VERIFICACIÓN DE RUTAS ===============
-console.log('🔍 Verificando rutas...');
-console.log('📍 __dirname:', __dirname);
-console.log('📍 Ruta actual del server.js:', __filename);
+// =============== CONFIGURACIÓN DE RUTAS ===============
+console.log('🔍 Configurando rutas...');
 
-// Ruta CORRECTA al frontend
-const frontendPath = path.join(__dirname, '../../frontend');
-const indexPath = path.join(frontendPath, 'index.html');
+// RUTA BASE CORRECTA
+const basePath = path.join(__dirname, '..'); // Sube a "la_mascotapp"
+console.log('📍 Ruta base del proyecto:', basePath);
 
-console.log('📁 Buscando frontend en:', frontendPath);
-console.log('📄 Buscando index.html en:', indexPath);
+// Rutas específicas CORRECTAS
+const frontendPath = path.join(basePath, 'frontend');
+const htmlPath = path.join(frontendPath, 'html'); // ¡Aquí están tus HTML!
+const indexPath = path.join(htmlPath, 'index.html');
 
-if (fs.existsSync(indexPath)) {
-    console.log('✅ index.html ENCONTRADO en:', indexPath);
-} else {
-    console.log('❌ index.html NO encontrado. Revisando estructura...');
+console.log('📁 Frontend path:', frontendPath);
+console.log('📄 HTML path:', htmlPath);
+console.log('🏠 Index path:', indexPath);
+
+// Verificar que existe
+if (!fs.existsSync(indexPath)) {
+    console.error('❌ ERROR: index.html no encontrado');
+    console.error('   Buscado en:', indexPath);
     
-    // Listar lo que sí existe
-    const parentDir = path.join(__dirname, '..');
-    console.log('📂 Contenido del directorio padre:');
+    // Ver qué archivos sí existen
+    console.log('\n📂 Contenido de frontend/:');
     try {
-        const files = fs.readdirSync(parentDir);
-        files.forEach(file => {
-            const filePath = path.join(parentDir, file);
-            const isDir = fs.statSync(filePath).isDirectory();
-            console.log(`  ${isDir ? '📁' : '📄'} ${file}`);
+        const items = fs.readdirSync(frontendPath);
+        items.forEach(item => {
+            const itemPath = path.join(frontendPath, item);
+            const isDir = fs.statSync(itemPath).isDirectory();
+            console.log(`  ${isDir ? '📁' : '📄'} ${item}`);
         });
+        
+        if (items.includes('html')) {
+            const htmlItems = fs.readdirSync(htmlPath);
+            console.log('\n📂 Contenido de frontend/html/:');
+            htmlItems.forEach(item => {
+                console.log(`  📄 ${item}`);
+            });
+        }
     } catch (err) {
-        console.log('Error leyendo directorio:', err.message);
+        console.error('Error leyendo directorios:', err.message);
     }
+    process.exit(1);
 }
 
-// =============== CONFIGURACIÓN ===============
+console.log('✅ Estructura verificada correctamente');
+
+// =============== CONFIGURACIÓN DEL SERVIDOR ===============
 app.use(cors({
     origin: ['http://localhost:5500', 'http://localhost:3000'],
     credentials: true
 }));
 app.use(express.json());
 
-// ⭐⭐ RUTA ESTÁTICA CORREGIDA ⭐⭐
-app.use(express.static(frontendPath));
+// SERVIR ARCHIVOS ESTÁTICOS CORRECTAMENTE
+app.use(express.static(frontendPath));  // Para CSS, JS, imágenes
+app.use(express.static(htmlPath));      // Para HTML en /html/
 
-// =============== CONEXIÓN A BD ===============
+// =============== CONEXIÓN A BASE DE DATOS ===============
 const db = mysql.createConnection({
     host: 'localhost',
     user: 'root',
@@ -59,33 +74,28 @@ const db = mysql.createConnection({
 
 db.connect((err) => {
     if (err) {
-        console.error('❌ Error conectando a MySQL:', err);
-        return;
+        console.error('❌ Error MySQL:', err.message);
+    } else {
+        console.log('✅ Conectado a MySQL');
     }
-    console.log('✅ Conectado a MySQL - Base de datos: veterinaria_db');
 });
 
-// =============== RUTAS DE API ===============
+// =============== RUTAS API ===============
 app.get('/api/test', (req, res) => {
-    res.json({ message: '¡El servidor funciona!' });
+    res.json({ 
+        success: true, 
+        message: 'API funcionando',
+        paths: {
+            base: basePath,
+            frontend: frontendPath,
+            html: htmlPath
+        }
+    });
 });
 
 app.get('/api/usuarios', (req, res) => {
     db.query('SELECT id, nombre, email, rol FROM usuarios', (err, results) => {
-        if (err) {
-            console.error('Error obteniendo usuarios:', err);
-            return res.status(500).json({ error: 'Error del servidor' });
-        }
-        res.json(results);
-    });
-});
-
-app.get('/api/citas', (req, res) => {
-    db.query('SELECT * FROM citas', (err, results) => {
-        if (err) {
-            console.error('Error obteniendo citas:', err);
-            return res.status(500).json({ error: 'Error del servidor' });
-        }
+        if (err) return res.status(500).json({ error: err.message });
         res.json(results);
     });
 });
@@ -98,14 +108,8 @@ app.post('/api/login', (req, res) => {
     }
     
     db.query('SELECT * FROM usuarios WHERE email = ?', [email], (err, results) => {
-        if (err) {
-            console.error('Error en login:', err);
-            return res.status(500).json({ error: 'Error del servidor' });
-        }
-        
-        if (results.length === 0) {
-            return res.status(401).json({ error: 'Usuario no encontrado' });
-        }
+        if (err) return res.status(500).json({ error: err.message });
+        if (results.length === 0) return res.status(401).json({ error: 'Credenciales incorrectas' });
         
         const user = results[0];
         
@@ -118,55 +122,48 @@ app.post('/api/login', (req, res) => {
                 user: user
             });
         } else {
-            res.status(401).json({ error: 'Contraseña incorrecta' });
+            res.status(401).json({ error: 'Credenciales incorrectas' });
         }
     });
 });
 
-app.post('/api/citas', (req, res) => {
-    const { fecha, hora, motivo, nombre_mascota, id_veterinario } = req.body;
-    
-    if (!fecha || !hora || !motivo) {
-        return res.status(400).json({ error: 'Faltan datos requeridos' });
-    }
-    
-    const nuevaCita = {
-        fecha,
-        hora,
-        motivo,
-        nombre_mascota: nombre_mascota || 'Sin nombre',
-        id_veterinario: id_veterinario || 3,
-        estado: 'activa'
-    };
-    
-    db.query('INSERT INTO citas SET ?', nuevaCita, (err, result) => {
-        if (err) {
-            console.error('Error creando cita:', err);
-            return res.status(500).json({ error: 'Error del servidor' });
-        }
-        
-        res.json({
-            success: true,
-            message: 'Cita creada',
-            citaId: result.insertId
-        });
-    });
+// =============== RUTAS PARA ARCHIVOS HTML ===============
+// Ruta raíz -> index.html
+app.get('/', (req, res) => {
+    res.sendFile(indexPath);
 });
 
-// =============== RUTA CATCH-ALL CORREGIDA ===============
-app.get('*', (req, res) => {
-    res.sendFile(path.join(frontendPath, 'index.html'));
+// Ruta para login.html
+app.get('/login', (req, res) => {
+    res.sendFile(path.join(htmlPath, 'html-acceso', 'inicio-sesion.html'));
+});
+
+// Ruta para registro.html
+app.get('/registro', (req, res) => {
+    res.sendFile(path.join(htmlPath, 'html-acceso', 'registro.html'));
+});
+
+// =============== MANEJO DE ERRORES ===============
+// Para rutas no encontradas
+app.use((req, res, next) => {
+    console.log(`❌ Ruta no encontrada: ${req.method} ${req.url}`);
+    res.status(404).json({ error: 'Ruta no encontrada' });
 });
 
 // =============== INICIAR SERVIDOR ===============
 const PORT = 3000;
 app.listen(PORT, () => {
-    console.log(`\n🚀 Servidor ejecutándose en http://localhost:${PORT}`);
-    console.log(`📊 Prueba estas rutas:`);
-    console.log(`   GET  http://localhost:${PORT}/api/test`);
-    console.log(`   GET  http://localhost:${PORT}/api/usuarios`);
-    console.log(`   GET  http://localhost:${PORT}/api/citas`);
-    console.log(`   POST http://localhost:${PORT}/api/login`);
-    console.log(`   POST http://localhost:${PORT}/api/citas`);
-    console.log(`\n🌐 Frontend disponible en: http://localhost:${PORT}`);
+    console.log('\n' + '='.repeat(60));
+    console.log('🚀 SERVIDOR INICIADO');
+    console.log('='.repeat(60));
+    console.log(`🌐 URL Principal: http://localhost:${PORT}`);
+    console.log(`🔧 API: http://localhost:${PORT}/api/test`);
+    console.log(`📁 Frontend: ${frontendPath}`);
+    console.log(`📄 HTML: ${htmlPath}`);
+    console.log('='.repeat(60));
+    console.log('\n✅ ¡Todo listo! Prueba estas URLs:');
+    console.log(`   http://localhost:${PORT}/`);
+    console.log(`   http://localhost:${PORT}/login`);
+    console.log(`   http://localhost:${PORT}/registro`);
+    console.log(`   http://localhost:${PORT}/api/test`);
 });
