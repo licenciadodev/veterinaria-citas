@@ -15,7 +15,7 @@
     <header class="header" role="banner">
         <div class="container header-container">
             <div class="logo">
-                <a href="../index.html" aria-label="Inicio de LaMascotApp">
+                <a href="/" aria-label="Inicio de LaMascotApp"> <!-- CAMBIADO: ../index.html → / -->
                     <span class="logo-text">La<span class="logo-highlight">Mascot</span>App</span>
                 </a>
             </div>
@@ -24,10 +24,10 @@
             </button>
             <nav class="main-nav" role="navigation">
                 <ul class="nav-list" id="main-menu">
-                    <li class="nav-item"><a href="../index.html" class="nav-link">Inicio</a></li>
+                    <li class="nav-item"><a href="/" class="nav-link">Inicio</a></li> <!-- CAMBIADO: ../index.html → / -->
                     <li class="nav-item"><a href="#" class="nav-link">Servicios</a></li>
-                    <li class="nav-item"><a href="registro.html" class="nav-link">Registrarse</a></li>
-                    <li class="nav-item"><a href="inicio-sesion.html" class="nav-link active" aria-current="page">Iniciar sesión</a></li>
+                    <li class="nav-item"><a href="/registro" class="nav-link">Registrarse</a></li> <!-- CAMBIADO: registro.html → /registro -->
+                    <li class="nav-item"><a href="/login" class="nav-link active" aria-current="page">Iniciar sesión</a></li> <!-- CAMBIADO: inicio-sesion.html → /login -->
                 </ul>
             </nav>
         </div>
@@ -66,7 +66,7 @@
                 </div>
                 <div class="register-container">
                     <p class="register-text">¿No tienes una cuenta aún?</p>
-                    <a href="registro.html" class="btn btn-secondary register-button">Registrarse</a>
+                    <a href="/registro" class="btn btn-secondary register-button">Registrarse</a> <!-- CAMBIADO: registro.html → /registro -->
                 </div>
             </div>
         </section>
@@ -105,7 +105,7 @@
     <footer class="footer" role="contentinfo">
         <div class="container footer-container">
             <div class="footer-logo">
-                <a href="../index.html">
+                <a href="/"> <!-- CAMBIADO: ../index.html → / -->
                     <span class="logo-text">La<span class="logo-highlight">Mascot</span>App</span>
                 </a>
                 <p class="footer-description">Cuidado médico veterinario de excelencia</p>
@@ -113,10 +113,10 @@
             <div class="footer-links">
                 <h3 class="footer-title">Enlaces</h3>
                 <ul class="footer-list">
-                    <li><a href="../index.html">Inicio</a></li>
+                    <li><a href="/">Inicio</a></li> <!-- CAMBIADO: ../index.html → / -->
                     <li><a href="#">Servicios</a></li>
                     <li><a href="#">Contacto</a></li>
-                    <li><a href="inicio-sesion.html">Iniciar sesión</a></li>
+                    <li><a href="/login">Iniciar sesión</a></li> <!-- CAMBIADO: inicio-sesion.html → /login -->
                 </ul>
             </div>
             <div class="footer-contact">
