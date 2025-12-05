@@ -10,7 +10,7 @@ const app = express();
 
 // Middleware
 app.use(cors({
-    origin: 'http://localhost:5500',  // Si usas Live Server en VS Code
+    origin: ['http://localhost:5500', 'http://localhost:3000'],  // Ambos puertos
     credentials: true
 }));
 app.use(express.json());
@@ -18,12 +18,12 @@ app.use(express.json());
 // Servir archivos estáticos del frontend
 app.use(express.static(path.join(__dirname, '../frontend')));
 
-// Conexión a MySQL - BASE DE DATOS CORREGIDA
+// Conexión a MySQL
 const db = mysql.createConnection({
     host: 'localhost',
     user: 'root',
-    password: '',          // Contraseña vacía para XAMPP
-    database: 'veterinaria_db'  // ¡NUEVA BASE DE DATOS!
+    password: '',
+    database: 'veterinaria_db'
 });
 
 // Conectar a MySQL
@@ -53,19 +53,26 @@ const authenticateToken = (req, res, next) => {
     });
 };
 
-// =============== RUTAS DE USUARIOS ===============
+// =============== RUTAS PÚBLICAS ===============
+
+// Health check
+app.get('/api/health', (req, res) => {
+    res.json({ 
+        status: 'ok',
+        message: 'Servidor de veterinaria funcionando',
+        timestamp: new Date().toISOString()
+    });
+});
 
 // Registro de usuario
 app.post('/api/usuarios/registro', async (req, res) => {
     try {
         const { nombre, email, password, telefono } = req.body;
         
-        // Validar campos requeridos
         if (!nombre || !email || !password) {
             return res.status(400).json({ error: 'Nombre, email y contraseña son obligatorios' });
         }
         
-        // Verificar si el usuario ya existe
         db.query('SELECT id FROM usuarios WHERE email = ?', [email], (err, results) => {
             if (err) {
                 console.error('Error verificando email:', err);
@@ -76,20 +83,18 @@ app.post('/api/usuarios/registro', async (req, res) => {
                 return res.status(400).json({ error: 'El email ya está registrado' });
             }
             
-            // Hash de la contraseña
             bcrypt.hash(password, 10, (err, hashedPassword) => {
                 if (err) {
                     console.error('Error hashing password:', err);
                     return res.status(500).json({ error: 'Error del servidor' });
                 }
                 
-                // Insertar nuevo usuario
                 const nuevoUsuario = {
                     nombre,
                     email,
                     password: hashedPassword,
                     telefono: telefono || null,
-                    rol: 'propietario'  // Por defecto
+                    rol: 'propietario'
                 };
                 
                 db.query('INSERT INTO usuarios SET ?', nuevoUsuario, (err, result) => {
@@ -98,7 +103,6 @@ app.post('/api/usuarios/registro', async (req, res) => {
                         return res.status(500).json({ error: 'Error del servidor' });
                     }
                     
-                    // Generar token JWT
                     const token = jwt.sign(
                         { id: result.insertId, email, rol: 'propietario' },
                         'secreto_veterinaria',
@@ -133,7 +137,6 @@ app.post('/api/usuarios/login', (req, res) => {
         return res.status(400).json({ error: 'Email y contraseña requeridos' });
     }
     
-    // Buscar usuario por email
     db.query('SELECT * FROM usuarios WHERE email = ?', [email], (err, results) => {
         if (err) {
             console.error('Error en login:', err);
@@ -146,7 +149,6 @@ app.post('/api/usuarios/login', (req, res) => {
         
         const user = results[0];
         
-        // Verificar contraseña
         bcrypt.compare(password, user.password, (err, isMatch) => {
             if (err) {
                 console.error('Error comparando contraseñas:', err);
@@ -157,14 +159,12 @@ app.post('/api/usuarios/login', (req, res) => {
                 return res.status(401).json({ error: 'Credenciales incorrectas' });
             }
             
-            // Generar token JWT
             const token = jwt.sign(
                 { id: user.id, email: user.email, rol: user.rol },
                 'secreto_veterinaria',
                 { expiresIn: '24h' }
             );
             
-            // Enviar respuesta (sin la contraseña)
             delete user.password;
             
             res.json({
@@ -176,7 +176,7 @@ app.post('/api/usuarios/login', (req, res) => {
     });
 });
 
-// =============== RUTAS DE MASCOTAS ===============
+// =============== RUTAS PROTEGIDAS ===============
 
 // Obtener mascotas de un usuario
 app.get('/api/mascotas', authenticateToken, (req, res) => {
@@ -222,8 +222,6 @@ app.post('/api/mascotas', authenticateToken, (req, res) => {
     });
 });
 
-// =============== RUTAS DE CITAS ===============
-
 // Obtener citas
 app.get('/api/citas', authenticateToken, (req, res) => {
     const userRol = req.user.rol;
@@ -233,7 +231,6 @@ app.get('/api/citas', authenticateToken, (req, res) => {
     let params = [];
     
     if (userRol === 'propietario') {
-        // Propietario ve solo sus citas
         query = `
             SELECT c.*, m.nombre as mascota_nombre, u.nombre as veterinario_nombre
             FROM citas c
@@ -244,11 +241,9 @@ app.get('/api/citas', authenticateToken, (req, res) => {
         `;
         params = [userId];
     } else if (userRol === 'veterinario') {
-        // Veterinario ve las citas asignadas a él
         query = 'SELECT * FROM citas WHERE id_veterinario = ? ORDER BY fecha DESC, hora DESC';
         params = [userId];
-    } else if (userRol === 'recepcionista' || userRol === 'admin') {
-        // Recepcionista ve todas las citas
+    } else {
         query = `
             SELECT c.*, u.nombre as veterinario_nombre 
             FROM citas c
@@ -342,9 +337,7 @@ app.delete('/api/citas/:id', authenticateToken, (req, res) => {
     });
 });
 
-// =============== RUTAS ADICIONALES ===============
-
-// Obtener veterinarios (para dropdowns)
+// Obtener veterinarios
 app.get('/api/veterinarios', authenticateToken, (req, res) => {
     db.query('SELECT id, nombre, email FROM usuarios WHERE rol = "veterinario"', (err, results) => {
         if (err) {
@@ -373,17 +366,15 @@ app.get('/api/perfil', authenticateToken, (req, res) => {
     });
 });
 
-// Ruta para verificar si el servidor está funcionando
-app.get('/api/health', (req, res) => {
-    res.json({ 
-        status: 'ok',
-        message: 'Servidor de veterinaria funcionando',
-        timestamp: new Date().toISOString()
-    });
+// =============== MANEJO DE RUTAS NO ENCONTRADAS ===============
+
+// Para API routes no encontradas
+app.use('/api/*', (req, res) => {
+    res.status(404).json({ error: 'Ruta API no encontrada' });
 });
 
-// Ruta catch-all para SPA (Single Page Application)
-app.get('*', (req, res) => {
+// Para cualquier otra ruta, servir el frontend
+app.use('*', (req, res) => {
     res.sendFile(path.join(__dirname, '../frontend/index.html'));
 });
 
@@ -393,4 +384,12 @@ app.listen(PORT, () => {
     console.log(`🚀 Servidor ejecutándose en http://localhost:${PORT}`);
     console.log(`📁 Frontend servido desde: ${path.join(__dirname, '../frontend')}`);
     console.log(`🗄️  Base de datos: veterinaria_db`);
+    console.log(`🔧 Rutas disponibles:`);
+    console.log(`   GET  /api/health`);
+    console.log(`   POST /api/usuarios/registro`);
+    console.log(`   POST /api/usuarios/login`);
+    console.log(`   GET  /api/mascotas (protegida)`);
+    console.log(`   POST /api/mascotas (protegida)`);
+    console.log(`   GET  /api/citas (protegida)`);
+    console.log(`   POST /api/citas (protegida)`);
 });
