@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Panel Propietario - LaMascotApp</title>
-    <link rel="stylesheet" href="../../css/global.css">
-    <link rel="stylesheet" href="../../css/css-perfiles/dashboard-propietario.css">
+    <link rel="stylesheet" href="/css/global.css">
+    <link rel="stylesheet" href="/css/css-perfiles/dashboard-propietario.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Montserrat:wght@700;800&display=swap" rel="stylesheet">
@@ -14,7 +14,7 @@
     <header class="header" role="banner">
         <div class="container header-container">
             <div class="logo">
-                <a href="../index.html" aria-label="Inicio de LaMascotApp">
+                <a href="/dashboard-propietario" aria-label="Inicio de LaMascotApp">
                     <span class="logo-text">La<span class="logo-highlight">Mascot</span>App</span>
                 </a>
             </div>
@@ -23,10 +23,10 @@
             </button>
             <nav class="main-nav" role="navigation">
                 <ul class="nav-list" id="main-menu">
-                    <li class="nav-item"><a href="../index.html" class="nav-link">Panel Principal</a></li>
-                    <li class="nav-item"><a href="../html-acceso/citas-medicas.html" class="nav-link">Citas</a></li>
-                    <li class="nav-item"><a href="../html-acceso/historial-medico.html" class="nav-link">Historial</a></li>
-                    <li class="nav-item"><a href="../index.html" class="nav-link">Cerrar Sesión</a></li>
+                    <li class="nav-item"><a href="/dashboard-propietario" class="nav-link">Panel Principal</a></li>
+                    <li class="nav-item"><a href="/citas" class="nav-link">Citas</a></li>
+                    <li class="nav-item"><a href="/historial" class="nav-link">Historial</a></li>
+                    <li class="nav-item"><a href="/login" class="nav-link">Cerrar Sesión</a></li>
                 </ul>
             </nav>
         </div>
@@ -84,7 +84,7 @@
                     <h2 id="appointment-actions-heading" class="section-title">Gestión de Citas</h2>
                     
                     <div class="actions-container">
-                        <button class="btn btn-primary" id="schedule-appointment-btn" disabled>Agendar nueva cita</button>
+                        <a href="/citas" class="btn btn-primary" id="schedule-appointment-btn">Agendar nueva cita</a>
                         <button class="btn btn-outline" id="modify-appointment-btn" disabled>Modificar cita</button>
                         <button class="btn btn-outline" id="cancel-appointment-btn" disabled>Eliminar cita</button>
                     </div>
@@ -95,10 +95,10 @@
                     <h2 id="quick-actions-heading" class="section-title">Acciones Rápidas</h2>
                     
                     <div class="actions-grid">
-                        <button class="action-card" id="view-medical-history-btn" disabled>
+                        <a href="/historial" class="action-card" id="view-medical-history-btn">
                             <div class="action-icon">📋</div>
                             <span class="action-title">Ver historial médico</span>
-                        </button>
+                        </a>
                         
                         <button class="action-card" id="update-personal-data-btn">
                             <div class="action-icon">👤</div>
@@ -173,60 +173,60 @@
                     
                     <div class="form-group">
                         <label for="user-department" class="form-label">Departamento <span class="required">*</span></label>
-                        <input type="text" id="user-department" name="user-department" class="form-input" required>
-                        <div class="form-error" id="user-department-error"></div>
-                    </div>
-                    
-                    <div class="form-actions">
-                        <button type="submit" class="btn btn-primary">Actualizar datos</button>
-                    </div>
-                </form>
+                            <input type="text" id="user-department" name="user-department" class="form-input" required>
+                            <div class="form-error" id="user-department-error"></div>
+                        </div>
+                        
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">Actualizar datos</button>
+                        </div>
+                    </form>
+                </div>
             </div>
-        </div>
-    </main>
-
-    <footer class="footer" role="contentinfo">
-        <div class="container footer-container">
-            <div class="footer-logo">
-                <a href="../index.html">
-                    <span class="logo-text">La<span class="logo-highlight">Mascot</span>App</span>
-                </a>
-                <p class="footer-description">Cuidado médico veterinario de excelencia</p>
-            </div>
-            <div class="footer-links">
-                <h3 class="footer-title">Enlaces</h3>
-                <ul class="footer-list">
-                    <li><a href="../index.html">Panel Principal</a></li>
-                    <li><a href="../html-acceso/citas-medicas.html">Agendar Cita</a></li>
-                    <li><a href="#">Contacto</a></li>
-                    <li><a href="../index.html">Cerrar Sesión</a></li>
-                </ul>
-            </div>
-            <div class="footer-contact">
-                <h3 class="footer-title">Contacto</h3>
-                <ul class="footer-list contact-list">
-                    <li class="contact-item">
-                        <span class="contact-icon" aria-hidden="true">📍</span>
-                        <span>Calle Veterinaria 123, Bogotá</span>
-                    </li>
-                    <li class="contact-item">
-                        <span class="contact-icon" aria-hidden="true">📱</span>
-                        <span>+34 910 123 456</span>
-                    </li>
-                    <li class="contact-item">
-                        <span class="contact-icon" aria-hidden="true">✉️</span>
-                        <span>contacto@lamascotapp.co</span>
-                    </li>
-                </ul>
-            </div>
-        </div>
-        <div class="footer-bottom">
-            <div class="container">
-                <p>&copy; 2025 LaMascotApp. Desarrollado por Jairo Benavides Pasos - Aplicación veterinaria especializada en gestión de citas médicas veterinarias.</p>
-            </div>
-        </div>
-    </footer>
+        </main>
     
-    <script src="../../js/js-perfiles/dashboard-propietario.js"></script> 
-</body>
+        <footer class="footer" role="contentinfo">
+            <div class="container footer-container">
+                <div class="footer-logo">
+                    <a href="/dashboard-propietario">
+                        <span class="logo-text">La<span class="logo-highlight">Mascot</span>App</span>
+                    </a>
+                    <p class="footer-description">Cuidado médico veterinario de excelencia</p>
+                </div>
+                <div class="footer-links">
+                    <h3 class="footer-title">Enlaces</h3>
+                    <ul class="footer-list">
+                        <li><a href="/dashboard-propietario">Panel Principal</a></li>
+                        <li><a href="/citas">Agendar Cita</a></li>
+                        <li><a href="#">Contacto</a></li>
+                        <li><a href="/login">Cerrar Sesión</a></li>
+                    </ul>
+                </div>
+                <div class="footer-contact">
+                    <h3 class="footer-title">Contacto</h3>
+                    <ul class="footer-list contact-list">
+                        <li class="contact-item">
+                            <span class="contact-icon" aria-hidden="true">📍</span>
+                            <span>Calle Veterinaria 123, Bogotá</span>
+                        </li>
+                        <li class="contact-item">
+                            <span class="contact-icon" aria-hidden="true">📱</span>
+                            <span>+34 910 123 456</span>
+                        </li>
+                        <li class="contact-item">
+                            <span class="contact-icon" aria-hidden="true">✉️</span>
+                            <span>contacto@lamascotapp.co</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <div class="container">
+                    <p>&copy; 2025 LaMascotApp. Desarrollado por Jairo Benavides Pasos - Aplicación veterinaria especializada en gestión de citas médicas veterinarias.</p>
+                </div>
+            </div>
+        </footer>
+        
+        <script src="/js/js-perfiles/dashboard-propietario.js"></script> 
+    </body>
 </html>
