@@ -298,37 +298,41 @@ app.post('/api/registrar/propietario', (req, res) => {
                 const userId = result.insertId;
                 console.log('✅ Usuario registrado exitosamente. ID:', userId);
                 
-                if (nombre_mascota && especie) {
-                    const mascotaQuery = `
-                        INSERT INTO mascotas 
-                        (nombre, especie, raza, edad, id_propietario) 
-                        VALUES (?, ?, ?, ?, ?)
-                    `;
-                    
-                    db.query(mascotaQuery, 
-                        [nombre_mascota, especie, raza || null, edad || null, userId], 
-                        (err) => {
-                            if (err) {
-                                console.error('⚠️ Error al crear mascota:', err.message);
-                            } else {
-                                console.log('✅ Mascota registrada para usuario:', userId);
-                            }
-                            
-                            res.json({ 
-                                success: true, 
-                                message: 'Registro exitoso. ¡Bienvenido a LaMascotApp!',
-                                userId: userId,
-                                user: {
-                                    id: userId,
-                                    nombre: nombreCompleto,
-                                    usuario: usuario,
-                                    email: email,
-                                    rol: 'propietario'
-                                }
-                            });
-                        }
-                    );
-                } else {
+                // Insertar mascota si hay datos (VERSIÓN CORREGIDA - sin campo peso)
+if (nombre_mascota && especie) {
+    const mascotaQuery = `
+        INSERT INTO mascotas 
+        (nombre, especie, raza, edad, id_propietario) 
+        VALUES (?, ?, ?, ?, ?)
+    `;
+    
+    db.query(mascotaQuery, 
+        [nombre_mascota, especie, raza || null, edad || null, userId], 
+        (err, mascotaResult) => {
+            if (err) {
+                console.error('❌ Error al crear mascota:', err.message);
+                // No devolvemos error al cliente porque el usuario ya se creó
+                console.log('⚠️ El usuario se creó pero la mascota no pudo guardarse');
+            } else {
+                console.log('✅ Mascota registrada con ID:', mascotaResult.insertId);
+            }
+            
+            // Siempre respondemos éxito aunque falle la mascota
+            res.json({ 
+                success: true, 
+                message: 'Registro exitoso. ¡Bienvenido a LaMascotApp!',
+                userId: userId,
+                user: {
+                    id: userId,
+                    nombre: nombreCompleto,
+                    usuario: usuario,
+                    email: email,
+                    rol: 'propietario'
+                }
+            });
+        }
+    );
+} else {
                     res.json({ 
                         success: true, 
                         message: 'Registro exitoso. ¡Bienvenido a LaMascotApp!',
