@@ -1,4 +1,4 @@
-// backend/server.js - VERSIÓN COMPLETA Y CORREGIDA (CON BCRYPT)
+// backend/server.js - VERSIÓN COMPLETA Y CORREGIDA (CON BCRYPT Y RUTA DE MASCOTAS)
 const bcrypt = require('bcryptjs');
 const express = require('express');
 const mysql = require('mysql2');
@@ -19,7 +19,7 @@ console.log('📍 Ruta base:', basePath);
 console.log('📁 Frontend:', frontendPath);
 console.log('📄 HTML:', htmlPath);
 
-// Verificar archivos principales (opcional)
+// Verificar archivos principales
 const archivosVerificar = [
     { nombre: 'index.html', ruta: path.join(htmlPath, 'index.html') },
     { nombre: 'inicio-sesion.html', ruta: path.join(htmlPath, 'html-acceso', 'inicio-sesion.html') },
@@ -212,7 +212,7 @@ app.post('/api/login', (req, res) => {
     });
 });
 
-// 4. REGISTRO DE PROPIETARIO (con contraseña hasheada)
+// 4. REGISTRO DE PROPIETARIO (con soporte para mascotas)
 app.post('/api/registrar/propietario', (req, res) => {
     console.log('📝 Solicitud de registro recibida:', req.body);
     
@@ -248,9 +248,10 @@ app.post('/api/registrar/propietario', (req, res) => {
         return res.status(400).json({ success: false, error: 'Las contraseñas no coinciden' });
     }
 
-    // 🔐 HASHEAR LA CONTRASEÑA
     const hashedPassword = bcrypt.hashSync(password, 10);
+    const nombreCompleto = `${nombres} ${apellidos}`.trim();
 
+    // Verificar duplicados
     db.query('SELECT id, usuario, email FROM usuarios WHERE usuario = ? OR email = ?', 
         [usuario, email], 
         (err, results) => {
@@ -270,8 +271,7 @@ app.post('/api/registrar/propietario', (req, res) => {
                 return res.status(400).json({ success: false, error: errorMsg });
             }
             
-            const nombreCompleto = `${nombres} ${apellidos}`.trim();
-            
+            // Insertar usuario
             const insertQuery = `
                 INSERT INTO usuarios 
                 (nombre, usuario, email, password, telefono, direccion, ciudad, departamento, rol) 
@@ -282,7 +282,7 @@ app.post('/api/registrar/propietario', (req, res) => {
                 nombreCompleto, 
                 usuario, 
                 email, 
-                hashedPassword,   // ← contraseña hasheada
+                hashedPassword,
                 telefono || null,
                 direccion || null,
                 ciudad || null,
@@ -292,47 +292,49 @@ app.post('/api/registrar/propietario', (req, res) => {
             db.query(insertQuery, values, (err, result) => {
                 if (err) {
                     console.error('❌ Error al insertar usuario:', err.message);
-                    return res.status(500).json({ success: false, error: 'Error al crear el usuario' });
+                    return res.status(500).json({ success: false, error: 'Error al crear el usuario: ' + err.message });
                 }
                 
                 const userId = result.insertId;
                 console.log('✅ Usuario registrado exitosamente. ID:', userId);
                 
-                // Insertar mascota si hay datos (VERSIÓN CORREGIDA - sin campo peso)
-if (nombre_mascota && especie) {
-    const mascotaQuery = `
-        INSERT INTO mascotas 
-        (nombre, especie, raza, edad, id_propietario) 
-        VALUES (?, ?, ?, ?, ?)
-    `;
-    
-    db.query(mascotaQuery, 
-        [nombre_mascota, especie, raza || null, edad || null, userId], 
-        (err, mascotaResult) => {
-            if (err) {
-                console.error('❌ Error al crear mascota:', err.message);
-                // No devolvemos error al cliente porque el usuario ya se creó
-                console.log('⚠️ El usuario se creó pero la mascota no pudo guardarse');
-            } else {
-                console.log('✅ Mascota registrada con ID:', mascotaResult.insertId);
-            }
-            
-            // Siempre respondemos éxito aunque falle la mascota
-            res.json({ 
-                success: true, 
-                message: 'Registro exitoso. ¡Bienvenido a LaMascotApp!',
-                userId: userId,
-                user: {
-                    id: userId,
-                    nombre: nombreCompleto,
-                    usuario: usuario,
-                    email: email,
-                    rol: 'propietario'
-                }
-            });
-        }
-    );
-} else {
+                // Insertar mascota si hay datos
+                if (nombre_mascota && especie) {
+                    const mascotaQuery = `
+                        INSERT INTO mascotas 
+                        (nombre, especie, raza, edad, id_propietario) 
+                        VALUES (?, ?, ?, ?, ?)
+                    `;
+                    
+                    db.query(mascotaQuery, 
+                        [nombre_mascota, especie, raza || null, edad || null, userId], 
+                        (err, mascotaResult) => {
+                            if (err) {
+                                console.error('❌ Error al crear mascota:', err.message);
+                                return res.status(500).json({ 
+                                    success: false, 
+                                    error: 'Usuario creado pero error al registrar mascota: ' + err.message 
+                                });
+                            }
+                            
+                            console.log('✅ Mascota registrada con ID:', mascotaResult.insertId);
+                            
+                            res.json({ 
+                                success: true, 
+                                message: 'Registro exitoso. ¡Bienvenido a LaMascotApp!',
+                                userId: userId,
+                                mascotaId: mascotaResult.insertId,
+                                user: {
+                                    id: userId,
+                                    nombre: nombreCompleto,
+                                    usuario: usuario,
+                                    email: email,
+                                    rol: 'propietario'
+                                }
+                            });
+                        }
+                    );
+                } else {
                     res.json({ 
                         success: true, 
                         message: 'Registro exitoso. ¡Bienvenido a LaMascotApp!',
@@ -371,7 +373,32 @@ app.get('/api/usuario/:id', (req, res) => {
     );
 });
 
-// =============== RUTAS HTML (sin cambios) ===============
+// 7. OBTENER MASCOTAS DE UN PROPIETARIO (NUEVA RUTA)
+app.get('/api/mascotas/propietario/:idPropietario', (req, res) => {
+    const idPropietario = req.params.idPropietario;
+    
+    console.log(`🔍 Buscando mascotas para propietario ID: ${idPropietario}`);
+    
+    const query = 'SELECT id, nombre, especie, raza, edad FROM mascotas WHERE id_propietario = ?';
+    
+    db.query(query, [idPropietario], (err, results) => {
+        if (err) {
+            console.error('❌ Error al obtener mascotas:', err.message);
+            return res.status(500).json({ 
+                success: false, 
+                error: 'Error al obtener mascotas' 
+            });
+        }
+        
+        console.log(`✅ ${results.length} mascotas encontradas`);
+        res.json({ 
+            success: true,
+            mascotas: results 
+        });
+    });
+});
+
+// =============== RUTAS HTML PRINCIPALES ===============
 
 app.get('/', (req, res) => {
     const indexPath = path.join(htmlPath, 'index.html');
@@ -441,7 +468,8 @@ app.get('/registro-veterinario', (req, res) => {
     else res.status(404).send('Página de registro de veterinario no encontrada');
 });
 
-// =============== REDIRECCIONES (opcional) ===============
+// =============== REDIRECCIONES ===============
+
 app.get('/html-acceso/inicio-sesion.html', (req, res) => res.redirect('/login'));
 app.get('/html-acceso/registro.html', (req, res) => res.redirect('/registro'));
 app.get('/html-acceso/citas-medicas.html', (req, res) => res.redirect('/citas'));
@@ -454,6 +482,7 @@ app.get('/html-registros/registro-recepcionista.html', (req, res) => res.redirec
 app.get('/html-registros/registro-veterinario.html', (req, res) => res.redirect('/registro-veterinario'));
 
 // =============== RUTAS DE VERIFICACIÓN ===============
+
 app.get('/api/debug-files', (req, res) => {
     const files = {};
     archivosVerificar.forEach(archivo => {
@@ -481,6 +510,7 @@ app.get('/api/rutas', (req, res) => {
         { metodo: 'GET', ruta: '/dashboard-veterinario', descripcion: 'Dashboard veterinario' },
         { metodo: 'GET', ruta: '/api/logout', descripcion: 'API logout' },
         { metodo: 'GET', ruta: '/api/test', descripcion: 'Prueba de API' },
+        { metodo: 'GET', ruta: '/api/mascotas/propietario/:id', descripcion: 'Obtener mascotas de un propietario' },
         { metodo: 'GET', ruta: '/api/debug-files', descripcion: 'Debug de archivos' },
         { metodo: 'GET', ruta: '/api/rutas', descripcion: 'Lista de rutas (esta página)' }
     ];
@@ -520,6 +550,7 @@ app.listen(PORT, HOST, () => {
     console.log(`🔧 API Test:      http://${HOST}:${PORT}/api/test`);
     console.log(`🔐 Login API:     POST http://${HOST}:${PORT}/api/login`);
     console.log(`📝 Registro API:  POST http://${HOST}:${PORT}/api/registrar/propietario`);
+    console.log(`🐾 Mascotas API:  GET http://${HOST}:${PORT}/api/mascotas/propietario/:id`);
     console.log('='.repeat(70));
     console.log('\n👤 USUARIOS DE PRUEBA (contraseña: 123456):');
     console.log('   Usuario: juan, maria (propietarios)');
