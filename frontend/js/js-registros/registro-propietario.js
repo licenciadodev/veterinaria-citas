@@ -1,3 +1,4 @@
+// frontend/js/js-registros/registro-propietario.js
 document.addEventListener('DOMContentLoaded', function() {
     const registerForm = document.getElementById('owner-register-form');
     const passwordField = document.getElementById('password');
@@ -36,25 +37,21 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Validación al enviar
-    registerForm.addEventListener('submit', function(e) {
+    registerForm.addEventListener('submit', async function(e) {
         e.preventDefault();
         let isValid = true;
 
-        // Lista de campos requeridos — ¡incluye 'usuario' ahora!
+        // Limpiar errores previos
+        document.querySelectorAll('.form-error').forEach(el => el.textContent = '');
+        document.querySelectorAll('.form-input, .form-select').forEach(el => el.classList.remove('error'));
+
+        // Lista de campos requeridos (puedes ajustar si algunos no son obligatorios)
         const requiredFields = [
             'nombres', 'apellidos', 'email', 'telefono',
             'direccion', 'ciudad', 'departamento',
             'nombre-mascota', 'especie', 'raza', 'edad',
             'usuario', 'password', 'confirm-password'
         ];
-
-        // Limpiar errores previos
-        document.querySelectorAll('.form-error').forEach(el => {
-            el.textContent = '';
-        });
-        document.querySelectorAll('.form-input, .form-select').forEach(el => {
-            el.classList.remove('error');
-        });
 
         // Validar campos requeridos
         requiredFields.forEach(fieldId => {
@@ -76,7 +73,7 @@ document.addEventListener('DOMContentLoaded', function() {
             isValid = false;
         }
 
-        // Validación de usuario: mínimo 4 caracteres (sin espacios al inicio/final)
+        // Validación de usuario: mínimo 4 caracteres (sin espacios)
         const usuarioInput = document.getElementById('usuario');
         const usuario = usuarioInput.value.trim();
         if (usuario && usuario.length < 4) {
@@ -89,7 +86,7 @@ document.addEventListener('DOMContentLoaded', function() {
             isValid = false;
         }
 
-        // Validación de coincidencia de contraseñas (redundante pero segura)
+        // Validación de coincidencia de contraseñas
         const pass = passwordField.value;
         const confirmPass = confirmPasswordField.value;
         if (pass !== confirmPass) {
@@ -98,36 +95,61 @@ document.addEventListener('DOMContentLoaded', function() {
             isValid = false;
         }
 
-        // ✅ Contraseña: SOLO se verifica que no esté vacía (ya cubierto por 'required')
-        // No se aplican reglas de complejidad (tus preferencias respetadas)
+        if (!isValid) return;
 
-        if (isValid) {
-            // ✅ Formulario válido → listo para enviar a Node.js
-            console.log('✅ Formulario válido. Enviando a /api/registrar/propietario...');
-            // Aquí iría el fetch() real al backend cuando lo implementes:
-            /*
-            fetch('/api/registrar/propietario', {
+        // Recoger datos del formulario en un objeto
+        const formData = {
+            nombres: document.getElementById('nombres').value,
+            apellidos: document.getElementById('apellidos').value,
+            email: document.getElementById('email').value,
+            telefono: document.getElementById('telefono').value,
+            direccion: document.getElementById('direccion').value,
+            ciudad: document.getElementById('ciudad').value,
+            departamento: document.getElementById('departamento').value,
+            nombre_mascota: document.getElementById('nombre-mascota').value,
+            especie: document.getElementById('especie').value,
+            raza: document.getElementById('raza').value,
+            edad: document.getElementById('edad').value,
+            usuario: document.getElementById('usuario').value,
+            password: document.getElementById('password').value,
+            'confirm-password': document.getElementById('confirm-password').value
+        };
+
+        try {
+            const response = await fetch('/api/registrar/propietario', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    nombres: document.getElementById('nombres').value,
-                    apellidos: document.getElementById('apellidos').value,
-                    email: document.getElementById('email').value,
-                    telefono: document.getElementById('telefono').value,
-                    direccion: document.getElementById('direccion').value,
-                    ciudad: document.getElementById('ciudad').value,
-                    departamento: document.getElementById('departamento').value,
-                    nombre_mascota: document.getElementById('nombre-mascota').value,
-                    especie: document.getElementById('especie').value,
-                    raza: document.getElementById('raza').value,
-                    edad: document.getElementById('edad').value,
-                    usuario: document.getElementById('usuario').value,
-                    password: document.getElementById('password').value
-                })
-            })
-            */
-            alert('✅ Registro exitoso. (En producción, se enviaría al backend ahora.)');
-            // window.location.href = '../html-perfiles/propietario.html';
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(formData)
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                alert('✅ Registro exitoso. Serás redirigido al inicio de sesión.');
+                window.location.href = '/login';
+            } else {
+                // Intentar mostrar el error en el campo correspondiente
+                const errorMsg = result.error || 'Error desconocido';
+                const lowerError = errorMsg.toLowerCase();
+
+                if (lowerError.includes('usuario') && lowerError.includes('registrado')) {
+                    document.getElementById('usuario-error').textContent = errorMsg;
+                    document.getElementById('usuario').classList.add('error');
+                } else if (lowerError.includes('email') && lowerError.includes('registrado')) {
+                    document.getElementById('email-error').textContent = errorMsg;
+                    document.getElementById('email').classList.add('error');
+                } else if (lowerError.includes('contraseña') && lowerError.includes('coinciden')) {
+                    document.getElementById('confirm-password-error').textContent = errorMsg;
+                    confirmPasswordField.classList.add('error');
+                } else {
+                    alert('Error: ' + errorMsg);
+                }
+            }
+        } catch (error) {
+            console.error('Error de conexión:', error);
+            alert('Error de conexión con el servidor. Verifica que el backend esté corriendo en http://localhost:3000');
         }
     });
 });
