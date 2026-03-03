@@ -191,7 +191,6 @@ app.get('/api/mascotas/propietario/:id', (req, res) => {
 });
 
 // =============== RUTAS HTML ===============
-// =============== RUTAS HTML ===============
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, '../frontend/html/index.html'));
 });
