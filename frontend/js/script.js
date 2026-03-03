@@ -1,6 +1,6 @@
-// ../js/script.js (actualizado con funcionalidad para registro)
+// frontend/js/script.js (completo y corregido)
 document.addEventListener('DOMContentLoaded', function() {
-    // Funcionalidad para el menú móvil (existente)
+    // Funcionalidad para el menú móvil
     const mobileMenuToggle = document.getElementById('mobile-menu-toggle');
     const mainMenu = document.getElementById('main-menu');
     const navLinks = document.querySelectorAll('.nav-link');
@@ -12,7 +12,6 @@ document.addEventListener('DOMContentLoaded', function() {
             this.setAttribute('aria-expanded', !isExpanded);
             mainMenu.classList.toggle('active');
             
-            // Cambiar icono del menú
             const hamburger = this.querySelector('.hamburger');
             if (hamburger) {
                 if (!isExpanded) {
@@ -25,7 +24,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
         
-        // Cerrar menú al hacer clic en un enlace
         navLinks.forEach(link => {
             link.addEventListener('click', function() {
                 if (mainMenu.classList.contains('active')) {
@@ -38,7 +36,6 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
         
-        // Cerrar menú al hacer clic fuera de él
         document.addEventListener('click', function(event) {
             if (!mainMenu.contains(event.target) && !mobileMenuToggle.contains(event.target)) {
                 if (mainMenu.classList.contains('active')) {
@@ -61,8 +58,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    // --- NUEVA FUNCIONALIDAD PARA REGISTRO ---
-    // Modal de acceso especial para recepcionistas y veterinarios
+    // Modal de acceso especial para recepcionistas y veterinarios (CORREGIDO)
     const accessButtons = document.querySelectorAll('.access-button');
     const modal = document.getElementById('access-modal');
     const closeModal = document.getElementById('close-modal');
@@ -110,7 +106,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Manejar envío del formulario de acceso
+    // Manejar envío del formulario de acceso (CORREGIDO: rutas absolutas)
     if (accessForm) {
         accessForm.addEventListener('submit', function(e) {
             e.preventDefault();
@@ -120,18 +116,11 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Validar clave de acceso
             if (accessKey === 'registro-1234') {
-                // Redirigir según el rol seleccionado
-                let redirectPage = '';
+                // Redirigir usando rutas del servidor (NO rutas relativas)
                 if (selectedRole === 'receptionist') {
-                    redirectPage = '../html-registros/registro-recepcionista.html';
+                    window.location.href = '/registro-recepcionista';
                 } else if (selectedRole === 'veterinarian') {
-                    redirectPage = '../html-registros/registro-veterinario.html';
-                }
-                
-                if (redirectPage) {
-                    modal.classList.remove('active');
-                    modal.setAttribute('aria-hidden', 'true');
-                    window.location.href = redirectPage;
+                    window.location.href = '/registro-veterinario';
                 }
             } else {
                 keyErrorElement.textContent = 'Clave de acceso incorrecta. Contacte al administrador.';
@@ -144,7 +133,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-// Animaciones al hacer scroll (existente)
+// Animaciones al hacer scroll
 document.addEventListener('DOMContentLoaded', function() {
     const observerOptions = {
         threshold: 0.1
@@ -158,7 +147,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }, observerOptions);
     
-    // Observar elementos animables
     document.querySelectorAll('.hero-content, .about-content, .cta-section, .register-container').forEach(element => {
         observer.observe(element);
     });
