@@ -198,6 +198,9 @@ app.get('/registro-propietario', (req, res) => res.sendFile(path.join(__dirname,
 app.get('/registro-recepcionista', (req, res) => res.sendFile(path.join(__dirname, '../frontend/html/html-registros/registro-recepcionista.html')));
 app.get('/registro-veterinario', (req, res) => res.sendFile(path.join(__dirname, '../frontend/html/html-registros/registro-veterinario.html')));
 app.get('/dashboard-propietario', (req, res) => res.sendFile(path.join(__dirname, '../frontend/html/html-perfiles/dashboard-propietario.html')));
+app.get('/dashboard-recepcionista', (req, res) => {
+    res.sendFile(path.join(__dirname, '../frontend/html/html-perfiles/dashboard-recepcionista.html'));
+});
 
 // =============== INICIAR SERVIDOR ===============
 const PORT = 3000;
