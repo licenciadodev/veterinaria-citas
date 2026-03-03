@@ -1,10 +1,11 @@
-// backend/server.js - VERSIÓN COMPLETA Y CORREGIDA (CON BCRYPT Y RUTA DE MASCOTAS)
+// backend/server.js - VERSIÓN CON VALIDACIÓN Y SANITIZACIÓN
 const bcrypt = require('bcryptjs');
 const express = require('express');
 const mysql = require('mysql2');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
+const { body, validationResult, matchedData } = require('express-validator');
 
 const app = express();
 
@@ -15,39 +16,9 @@ const basePath = path.join(__dirname, '..');
 const frontendPath = path.join(basePath, 'frontend');
 const htmlPath = path.join(frontendPath, 'html');
 
-console.log('📍 Ruta base:', basePath);
-console.log('📁 Frontend:', frontendPath);
-console.log('📄 HTML:', htmlPath);
-
-// Verificar archivos principales
-const archivosVerificar = [
-    { nombre: 'index.html', ruta: path.join(htmlPath, 'index.html') },
-    { nombre: 'inicio-sesion.html', ruta: path.join(htmlPath, 'html-acceso', 'inicio-sesion.html') },
-    { nombre: 'registro.html', ruta: path.join(htmlPath, 'html-acceso', 'registro.html') },
-    { nombre: 'citas-medicas.html', ruta: path.join(htmlPath, 'html-acceso', 'citas-medicas.html') },
-    { nombre: 'historial-medico.html', ruta: path.join(htmlPath, 'html-acceso', 'historial-medico.html') },
-    { nombre: 'dashboard-propietario.html', ruta: path.join(htmlPath, 'html-perfiles', 'dashboard-propietario.html') },
-    { nombre: 'dashboard-recepcionista.html', ruta: path.join(htmlPath, 'html-perfiles', 'dashboard-recepcionista.html') },
-    { nombre: 'dashboard-veterinario.html', ruta: path.join(htmlPath, 'html-perfiles', 'dashboard-veterinario.html') },
-    { nombre: 'registro-propietario.html', ruta: path.join(htmlPath, 'html-registros', 'registro-propietario.html') }
-];
-
-console.log('🔍 Verificando archivos:');
-archivosVerificar.forEach(archivo => {
-    if (fs.existsSync(archivo.ruta)) {
-        console.log(`   ✅ ${archivo.nombre}: EXISTE`);
-    } else {
-        console.log(`   ⚠️  ${archivo.nombre}: NO EXISTE (${archivo.ruta})`);
-    }
-});
-
-console.log('✅ Configuración completa');
-
 // =============== CONFIGURACIÓN EXPRESS ===============
 app.use(cors());
 app.use(express.json());
-
-// Servir archivos estáticos DESDE frontend/
 app.use(express.static(frontendPath));
 
 // =============== CONEXIÓN BD ===============
@@ -64,157 +35,198 @@ const db = mysql.createConnection({
 db.connect((err) => {
     if (err) {
         console.error('❌ Error MySQL:', err.message);
-        console.log('💡 Verifica que:');
-        console.log('   1. XAMPP/WAMP esté corriendo');
-        console.log('   2. MySQL esté activo en el puerto 3306');
-        console.log('   3. La base de datos "veterinaria_db" exista');
     } else {
         console.log('✅ Conectado a MySQL - veterinaria_db');
-        
-        // Verificar estructura de la tabla usuarios
-        db.query(`
-            SELECT COLUMN_NAME, DATA_TYPE 
-            FROM INFORMATION_SCHEMA.COLUMNS 
-            WHERE TABLE_SCHEMA = 'veterinaria_db' 
-            AND TABLE_NAME = 'usuarios'
-            ORDER BY ORDINAL_POSITION
-        `, (err, results) => {
-            if (err) {
-                console.error('❌ Error al verificar estructura:', err.message);
-            } else {
-                console.log('📋 Estructura de tabla "usuarios":');
-                results.forEach(col => {
-                    console.log(`   - ${col.COLUMN_NAME} (${col.DATA_TYPE})`);
-                });
-                
-                const tieneUsuario = results.some(col => col.COLUMN_NAME === 'usuario');
-                if (!tieneUsuario) {
-                    console.warn('⚠️  ADVERTENCIA: La tabla no tiene campo "usuario"');
-                    console.log('   Ejecuta: ALTER TABLE usuarios ADD COLUMN usuario VARCHAR(50) UNIQUE AFTER nombre;');
-                }
-            }
-        });
     }
 });
+
+// =============== MIDDLEWARE PARA VALIDACIÓN ===============
+const validateRequest = (req, res, next) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ 
+            success: false, 
+            errors: errors.array().map(e => ({
+                campo: e.path,
+                mensaje: e.msg
+            }))
+        });
+    }
+    next();
+};
 
 // =============== RUTAS API ===============
 
 // 1. Test API
 app.get('/api/test', (req, res) => {
-    res.json({ 
-        success: true,
-        message: '✅ API funcionando correctamente',
-        timestamp: new Date().toISOString(),
-        server: 'LaMascotApp Backend',
-        version: '1.0.0'
-    });
+    res.json({ success: true, message: '✅ API funcionando' });
 });
 
-// 2. Obtener usuarios (sin contraseñas)
+// 2. Obtener usuarios
 app.get('/api/usuarios', (req, res) => {
     db.query('SELECT id, nombre, usuario, email, telefono, rol FROM usuarios', (err, results) => {
-        if (err) {
-            console.error('❌ Error al obtener usuarios:', err.message);
-            return res.status(500).json({ 
-                success: false, 
-                error: 'Error del servidor al obtener usuarios' 
-            });
-        }
-        res.json({ 
-            success: true,
-            count: results.length,
-            usuarios: results 
-        });
+        if (err) return res.status(500).json({ success: false, error: 'Error al obtener usuarios' });
+        res.json({ success: true, usuarios: results });
     });
 });
 
-// 3. LOGIN - CON BCRYPT Y MIGRACIÓN AUTOMÁTICA
-app.post('/api/login', (req, res) => {
-    const { username, password } = req.body;
-    
-    console.log('🔐 Intento de login recibido');
-    
-    if (!username || !password) {
-        return res.status(400).json({ 
-            success: false, 
-            error: 'Usuario y contraseña son requeridos' 
-        });
-    }
+// 3. LOGIN CON VALIDACIÓN
+app.post('/api/login', [
+    body('username')
+        .trim()
+        .notEmpty().withMessage('El usuario es requerido')
+        .isLength({ min: 3, max: 50 }).withMessage('El usuario debe tener entre 3 y 50 caracteres')
+        .escape(),
+    body('password')
+        .notEmpty().withMessage('La contraseña es requerida')
+        .isLength({ min: 4 }).withMessage('La contraseña debe tener al menos 4 caracteres')
+], validateRequest, (req, res) => {
+    const { username, password } = matchedData(req);
     
     const query = 'SELECT * FROM usuarios WHERE usuario = ? OR email = ?';
     
     db.query(query, [username, username], (err, results) => {
         if (err) {
-            console.error('❌ Error en consulta BD:', err.message);
-            return res.status(500).json({ 
-                success: false, 
-                error: 'Error en el servidor de base de datos' 
-            });
+            return res.status(500).json({ success: false, error: 'Error en el servidor' });
         }
         
         if (results.length === 0) {
-            console.log('❌ Usuario no encontrado (no se revela en respuesta)');
-            return res.status(401).json({ 
-                success: false, 
-                error: 'Credenciales incorrectas' 
-            });
+            return res.status(401).json({ success: false, error: 'Credenciales incorrectas' });
         }
         
         const user = results[0];
         let passwordMatch = false;
 
-        // 1. Intentar comparación con bcrypt (hash)
+        // Comparación con bcrypt
         try {
             passwordMatch = bcrypt.compareSync(password, user.password);
         } catch (err) {
             passwordMatch = false;
         }
 
-        // 2. Si no coincide, probar comparación directa (contraseña legacy en texto plano)
+        // Migración de contraseñas antiguas
         if (!passwordMatch && password === user.password) {
             passwordMatch = true;
-            // Migrar a hash para futuros logins
             const newHash = bcrypt.hashSync(password, 10);
-            db.query('UPDATE usuarios SET password = ? WHERE id = ?', [newHash, user.id], (updateErr) => {
-                if (updateErr) {
-                    console.error('⚠️ No se pudo actualizar la contraseña a hash:', updateErr.message);
-                } else {
-                    console.log(`✅ Usuario ${user.id} migrado a contraseña hasheada.`);
-                }
-            });
+            db.query('UPDATE usuarios SET password = ? WHERE id = ?', [newHash, user.id]);
         }
 
         if (passwordMatch) {
-            console.log('✅ Login exitoso! Usuario:', user.usuario || user.email, 'Rol:', user.rol);
-            
             const userResponse = {
                 id: user.id,
                 nombre: user.nombre,
                 usuario: user.usuario,
                 email: user.email,
                 telefono: user.telefono,
-                rol: user.rol,
-                fechaLogin: new Date().toISOString()
+                rol: user.rol
             };
-            
-            res.json({ 
-                success: true, 
-                message: `Bienvenido ${user.nombre}`,
-                user: userResponse
-            });
+            res.json({ success: true, message: `Bienvenido ${user.nombre}`, user: userResponse });
         } else {
-            console.log('❌ Contraseña incorrecta para usuario existente');
-            res.status(401).json({ 
-                success: false, 
-                error: 'Credenciales incorrectas' 
-            });
+            res.status(401).json({ success: false, error: 'Credenciales incorrectas' });
         }
     });
 });
 
-// 4. REGISTRO DE PROPIETARIO (con soporte para mascotas)
-app.post('/api/registrar/propietario', (req, res) => {
-    console.log('📝 Solicitud de registro recibida:', req.body);
+// 4. REGISTRO DE PROPIETARIO CON VALIDACIÓN COMPLETA
+app.post('/api/registrar/propietario', [
+    // Validación de datos personales
+    body('nombres')
+        .trim()
+        .notEmpty().withMessage('Los nombres son requeridos')
+        .isLength({ min: 2, max: 50 }).withMessage('Los nombres deben tener entre 2 y 50 caracteres')
+        .matches(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/).withMessage('Los nombres solo pueden contener letras y espacios')
+        .escape(),
+    
+    body('apellidos')
+        .trim()
+        .notEmpty().withMessage('Los apellidos son requeridos')
+        .isLength({ min: 2, max: 50 }).withMessage('Los apellidos deben tener entre 2 y 50 caracteres')
+        .matches(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/).withMessage('Los apellidos solo pueden contener letras y espacios')
+        .escape(),
+    
+    body('email')
+        .trim()
+        .notEmpty().withMessage('El email es requerido')
+        .isEmail().withMessage('Debe ser un email válido')
+        .normalizeEmail()
+        .isLength({ max: 100 }).withMessage('El email no puede exceder 100 caracteres'),
+    
+    body('telefono')
+        .trim()
+        .notEmpty().withMessage('El teléfono es requerido')
+        .matches(/^[0-9+\-\s]+$/).withMessage('El teléfono solo puede contener números, +, - y espacios')
+        .isLength({ min: 7, max: 20 }).withMessage('El teléfono debe tener entre 7 y 20 caracteres')
+        .escape(),
+    
+    body('direccion')
+        .optional({ checkFalsy: true })
+        .trim()
+        .isLength({ max: 255 }).withMessage('La dirección no puede exceder 255 caracteres')
+        .escape(),
+    
+    body('ciudad')
+        .optional({ checkFalsy: true })
+        .trim()
+        .isLength({ max: 100 }).withMessage('La ciudad no puede exceder 100 caracteres')
+        .matches(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/).withMessage('La ciudad solo puede contener letras y espacios')
+        .escape(),
+    
+    body('departamento')
+        .optional({ checkFalsy: true })
+        .trim()
+        .isLength({ max: 100 }).withMessage('El departamento no puede exceder 100 caracteres')
+        .matches(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/).withMessage('El departamento solo puede contener letras y espacios')
+        .escape(),
+    
+    // Validación de mascota
+    body('nombre_mascota')
+        .trim()
+        .notEmpty().withMessage('El nombre de la mascota es requerido')
+        .isLength({ min: 2, max: 50 }).withMessage('El nombre de la mascota debe tener entre 2 y 50 caracteres')
+        .matches(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/).withMessage('El nombre de la mascota solo puede contener letras y espacios')
+        .escape(),
+    
+    body('especie')
+        .trim()
+        .notEmpty().withMessage('La especie es requerida')
+        .isLength({ min: 2, max: 50 }).withMessage('La especie debe tener entre 2 y 50 caracteres')
+        .matches(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/).withMessage('La especie solo puede contener letras y espacios')
+        .escape(),
+    
+    body('raza')
+        .optional({ checkFalsy: true })
+        .trim()
+        .isLength({ max: 50 }).withMessage('La raza no puede exceder 50 caracteres')
+        .matches(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]*$/).withMessage('La raza solo puede contener letras y espacios')
+        .escape(),
+    
+    body('edad')
+        .optional({ checkFalsy: true })
+        .trim()
+        .isInt({ min: 0, max: 50 }).withMessage('La edad debe ser un número entre 0 y 50')
+        .toInt(),
+    
+    // Validación de cuenta
+    body('usuario')
+        .trim()
+        .notEmpty().withMessage('El usuario es requerido')
+        .isLength({ min: 4, max: 30 }).withMessage('El usuario debe tener entre 4 y 30 caracteres')
+        .matches(/^[a-zA-Z0-9_]+$/).withMessage('El usuario solo puede contener letras, números y guión bajo')
+        .escape(),
+    
+    body('password')
+        .notEmpty().withMessage('La contraseña es requerida')
+        .isLength({ min: 4 }).withMessage('La contraseña debe tener al menos 4 caracteres'),
+        // Sin restricciones de complejidad por ahora
+    
+    body('confirm-password')
+        .notEmpty().withMessage('Debes confirmar la contraseña')
+        .custom((value, { req }) => value === req.body.password)
+        .withMessage('Las contraseñas no coinciden')
+
+], validateRequest, (req, res) => {
+    // Datos ya validados y sanitizados
+    const datos = matchedData(req);
     
     const {
         nombres,
@@ -229,24 +241,8 @@ app.post('/api/registrar/propietario', (req, res) => {
         raza,
         edad,
         usuario,
-        password,
-        'confirm-password': confirmPassword
-    } = req.body;
-    
-    const errors = [];
-    if (!usuario) errors.push('Usuario es requerido');
-    if (!email) errors.push('Email es requerido');
-    if (!password) errors.push('Contraseña es requerida');
-    if (!nombres) errors.push('Nombres son requeridos');
-    if (!apellidos) errors.push('Apellidos son requeridos');
-    
-    if (errors.length > 0) {
-        return res.status(400).json({ success: false, error: errors.join(', ') });
-    }
-    
-    if (password !== confirmPassword) {
-        return res.status(400).json({ success: false, error: 'Las contraseñas no coinciden' });
-    }
+        password
+    } = datos;
 
     const hashedPassword = bcrypt.hashSync(password, 10);
     const nombreCompleto = `${nombres} ${apellidos}`.trim();
@@ -256,7 +252,6 @@ app.post('/api/registrar/propietario', (req, res) => {
         [usuario, email], 
         (err, results) => {
             if (err) {
-                console.error('❌ Error al verificar usuario:', err.message);
                 return res.status(500).json({ success: false, error: 'Error al verificar disponibilidad' });
             }
             
@@ -283,7 +278,7 @@ app.post('/api/registrar/propietario', (req, res) => {
                 usuario, 
                 email, 
                 hashedPassword,
-                telefono || null,
+                telefono,
                 direccion || null,
                 ciudad || null,
                 departamento || null
@@ -291,63 +286,42 @@ app.post('/api/registrar/propietario', (req, res) => {
             
             db.query(insertQuery, values, (err, result) => {
                 if (err) {
-                    console.error('❌ Error al insertar usuario:', err.message);
-                    return res.status(500).json({ success: false, error: 'Error al crear el usuario: ' + err.message });
+                    return res.status(500).json({ success: false, error: 'Error al crear el usuario' });
                 }
                 
                 const userId = result.insertId;
-                console.log('✅ Usuario registrado exitosamente. ID:', userId);
                 
-                // Insertar mascota si hay datos
-                if (nombre_mascota && especie) {
-                    const mascotaQuery = `
-                        INSERT INTO mascotas 
-                        (nombre, especie, raza, edad, id_propietario) 
-                        VALUES (?, ?, ?, ?, ?)
-                    `;
-                    
-                    db.query(mascotaQuery, 
-                        [nombre_mascota, especie, raza || null, edad || null, userId], 
-                        (err, mascotaResult) => {
-                            if (err) {
-                                console.error('❌ Error al crear mascota:', err.message);
-                                return res.status(500).json({ 
-                                    success: false, 
-                                    error: 'Usuario creado pero error al registrar mascota: ' + err.message 
-                                });
-                            }
-                            
-                            console.log('✅ Mascota registrada con ID:', mascotaResult.insertId);
-                            
-                            res.json({ 
-                                success: true, 
-                                message: 'Registro exitoso. ¡Bienvenido a LaMascotApp!',
-                                userId: userId,
-                                mascotaId: mascotaResult.insertId,
-                                user: {
-                                    id: userId,
-                                    nombre: nombreCompleto,
-                                    usuario: usuario,
-                                    email: email,
-                                    rol: 'propietario'
-                                }
+                // Insertar mascota
+                const mascotaQuery = `
+                    INSERT INTO mascotas 
+                    (nombre, especie, raza, edad, id_propietario) 
+                    VALUES (?, ?, ?, ?, ?)
+                `;
+                
+                db.query(mascotaQuery, 
+                    [nombre_mascota, especie, raza || null, edad || null, userId], 
+                    (err) => {
+                        if (err) {
+                            console.error('❌ Error al crear mascota:', err.message);
+                            return res.status(500).json({ 
+                                success: false, 
+                                error: 'Usuario creado pero error al registrar mascota' 
                             });
                         }
-                    );
-                } else {
-                    res.json({ 
-                        success: true, 
-                        message: 'Registro exitoso. ¡Bienvenido a LaMascotApp!',
-                        userId: userId,
-                        user: {
-                            id: userId,
-                            nombre: nombreCompleto,
-                            usuario: usuario,
-                            email: email,
-                            rol: 'propietario'
-                        }
-                    });
-                }
+                        
+                        res.json({ 
+                            success: true, 
+                            message: 'Registro exitoso. ¡Bienvenido!',
+                            user: {
+                                id: userId,
+                                nombre: nombreCompleto,
+                                usuario: usuario,
+                                email: email,
+                                rol: 'propietario'
+                            }
+                        });
+                    }
+                );
             });
         }
     );
@@ -355,11 +329,10 @@ app.post('/api/registrar/propietario', (req, res) => {
 
 // 5. LOGOUT
 app.get('/api/logout', (req, res) => {
-    console.log('👋 Solicitud de logout recibida');
-    res.json({ success: true, message: 'Sesión cerrada exitosamente' });
+    res.json({ success: true, message: 'Sesión cerrada' });
 });
 
-// 6. OBTENER USUARIO ACTUAL (por ID)
+// 6. OBTENER USUARIO POR ID
 app.get('/api/usuario/:id', (req, res) => {
     const userId = req.params.id;
     
@@ -373,188 +346,93 @@ app.get('/api/usuario/:id', (req, res) => {
     );
 });
 
-// 7. OBTENER MASCOTAS DE UN PROPIETARIO (NUEVA RUTA)
+// 7. OBTENER MASCOTAS DE UN PROPIETARIO
 app.get('/api/mascotas/propietario/:idPropietario', (req, res) => {
     const idPropietario = req.params.idPropietario;
-    
-    console.log(`🔍 Buscando mascotas para propietario ID: ${idPropietario}`);
     
     const query = 'SELECT id, nombre, especie, raza, edad FROM mascotas WHERE id_propietario = ?';
     
     db.query(query, [idPropietario], (err, results) => {
         if (err) {
-            console.error('❌ Error al obtener mascotas:', err.message);
-            return res.status(500).json({ 
-                success: false, 
-                error: 'Error al obtener mascotas' 
-            });
+            return res.status(500).json({ success: false, error: 'Error al obtener mascotas' });
         }
-        
-        console.log(`✅ ${results.length} mascotas encontradas`);
-        res.json({ 
-            success: true,
-            mascotas: results 
-        });
+        res.json({ success: true, mascotas: results });
     });
 });
 
-// =============== RUTAS HTML PRINCIPALES ===============
-
+// =============== RUTAS HTML ===============
 app.get('/', (req, res) => {
-    const indexPath = path.join(htmlPath, 'index.html');
-    if (fs.existsSync(indexPath)) res.sendFile(indexPath);
-    else res.status(404).send(`<h1>Error 404</h1><p>index.html no existe</p><a href="/login">Ir al Login</a>`);
+    res.sendFile(path.join(htmlPath, 'index.html'));
 });
 
-app.get('/index.html', (req, res) => res.redirect('/'));
-
 app.get('/login', (req, res) => {
-    const loginPath = path.join(htmlPath, 'html-acceso', 'inicio-sesion.html');
-    if (fs.existsSync(loginPath)) res.sendFile(loginPath);
-    else res.status(404).send('Página de inicio de sesión no encontrada');
+    res.sendFile(path.join(htmlPath, 'html-acceso', 'inicio-sesion.html'));
 });
 
 app.get('/registro', (req, res) => {
-    const registroPath = path.join(htmlPath, 'html-acceso', 'registro.html');
-    if (fs.existsSync(registroPath)) res.sendFile(registroPath);
-    else res.status(404).send('Página de registro no encontrada');
-});
-
-app.get('/citas', (req, res) => {
-    const citasPath = path.join(htmlPath, 'html-acceso', 'citas-medicas.html');
-    if (fs.existsSync(citasPath)) res.sendFile(citasPath);
-    else res.status(404).send('Página de citas no encontrada');
-});
-
-app.get('/historial', (req, res) => {
-    const historialPath = path.join(htmlPath, 'html-acceso', 'historial-medico.html');
-    if (fs.existsSync(historialPath)) res.sendFile(historialPath);
-    else res.status(404).send('Página de historial no encontrada');
-});
-
-app.get('/dashboard-propietario', (req, res) => {
-    const dashboardPath = path.join(htmlPath, 'html-perfiles', 'dashboard-propietario.html');
-    if (fs.existsSync(dashboardPath)) res.sendFile(dashboardPath);
-    else res.status(404).send('Dashboard de propietario no encontrado');
-});
-
-app.get('/dashboard-recepcionista', (req, res) => {
-    const dashboardPath = path.join(htmlPath, 'html-perfiles', 'dashboard-recepcionista.html');
-    if (fs.existsSync(dashboardPath)) res.sendFile(dashboardPath);
-    else res.status(404).send('Dashboard de recepcionista no encontrado');
-});
-
-app.get('/dashboard-veterinario', (req, res) => {
-    const dashboardPath = path.join(htmlPath, 'html-perfiles', 'dashboard-veterinario.html');
-    if (fs.existsSync(dashboardPath)) res.sendFile(dashboardPath);
-    else res.status(404).send('Dashboard de veterinario no encontrado');
+    res.sendFile(path.join(htmlPath, 'html-acceso', 'registro.html'));
 });
 
 app.get('/registro-propietario', (req, res) => {
-    const registroPropPath = path.join(htmlPath, 'html-registros', 'registro-propietario.html');
-    if (fs.existsSync(registroPropPath)) res.sendFile(registroPropPath);
-    else res.status(404).send('Página de registro de propietario no encontrada');
+    res.sendFile(path.join(htmlPath, 'html-registros', 'registro-propietario.html'));
 });
 
-app.get('/registro-recepcionista', (req, res) => {
-    const registroRecPath = path.join(htmlPath, 'html-registros', 'registro-recepcionista.html');
-    if (fs.existsSync(registroRecPath)) res.sendFile(registroRecPath);
-    else res.status(404).send('Página de registro de recepcionista no encontrada');
+app.get('/dashboard-propietario', (req, res) => {
+    res.sendFile(path.join(htmlPath, 'html-perfiles', 'dashboard-propietario.html'));
 });
 
-app.get('/registro-veterinario', (req, res) => {
-    const registroVetPath = path.join(htmlPath, 'html-registros', 'registro-veterinario.html');
-    if (fs.existsSync(registroVetPath)) res.sendFile(registroVetPath);
-    else res.status(404).send('Página de registro de veterinario no encontrada');
+app.get('/dashboard-recepcionista', (req, res) => {
+    res.sendFile(path.join(htmlPath, 'html-perfiles', 'dashboard-recepcionista.html'));
+});
+
+app.get('/dashboard-veterinario', (req, res) => {
+    res.sendFile(path.join(htmlPath, 'html-perfiles', 'dashboard-veterinario.html'));
+});
+
+app.get('/citas', (req, res) => {
+    res.sendFile(path.join(htmlPath, 'html-acceso', 'citas-medicas.html'));
+});
+
+app.get('/historial', (req, res) => {
+    res.sendFile(path.join(htmlPath, 'html-acceso', 'historial-medico.html'));
 });
 
 // =============== REDIRECCIONES ===============
-
+app.get('/index.html', (req, res) => res.redirect('/'));
 app.get('/html-acceso/inicio-sesion.html', (req, res) => res.redirect('/login'));
 app.get('/html-acceso/registro.html', (req, res) => res.redirect('/registro'));
-app.get('/html-acceso/citas-medicas.html', (req, res) => res.redirect('/citas'));
-app.get('/html-acceso/historial-medico.html', (req, res) => res.redirect('/historial'));
 app.get('/html-perfiles/dashboard-propietario.html', (req, res) => res.redirect('/dashboard-propietario'));
-app.get('/html-perfiles/dashboard-recepcionista.html', (req, res) => res.redirect('/dashboard-recepcionista'));
-app.get('/html-perfiles/dashboard-veterinario.html', (req, res) => res.redirect('/dashboard-veterinario'));
-app.get('/html-registros/registro-propietario.html', (req, res) => res.redirect('/registro-propietario'));
-app.get('/html-registros/registro-recepcionista.html', (req, res) => res.redirect('/registro-recepcionista'));
-app.get('/html-registros/registro-veterinario.html', (req, res) => res.redirect('/registro-veterinario'));
 
-// =============== RUTAS DE VERIFICACIÓN ===============
-
-app.get('/api/debug-files', (req, res) => {
-    const files = {};
-    archivosVerificar.forEach(archivo => {
-        files[archivo.nombre.replace('.html', '').replace('-', '_')] = {
-            path: archivo.ruta,
-            exists: fs.existsSync(archivo.ruta),
-            size: fs.existsSync(archivo.ruta) ? fs.statSync(archivo.ruta).size + ' bytes' : 'N/A'
-        };
-    });
-    res.json({ success: true, files });
-});
-
+// =============== RUTA DE VERIFICACIÓN ===============
 app.get('/api/rutas', (req, res) => {
-    const rutas = [
-        { metodo: 'GET', ruta: '/', descripcion: 'Página principal' },
-        { metodo: 'GET', ruta: '/login', descripcion: 'Iniciar sesión (HTML)' },
-        { metodo: 'POST', ruta: '/api/login', descripcion: 'API Login (JSON)' },
-        { metodo: 'GET', ruta: '/registro', descripcion: 'Selección de registro' },
-        { metodo: 'GET', ruta: '/registro-propietario', descripcion: 'Formulario registro propietario' },
-        { metodo: 'POST', ruta: '/api/registrar/propietario', descripcion: 'API registro propietario' },
-        { metodo: 'GET', ruta: '/citas', descripcion: 'Gestión de citas' },
-        { metodo: 'GET', ruta: '/historial', descripcion: 'Historial médico' },
-        { metodo: 'GET', ruta: '/dashboard-propietario', descripcion: 'Dashboard propietario' },
-        { metodo: 'GET', ruta: '/dashboard-recepcionista', descripcion: 'Dashboard recepcionista' },
-        { metodo: 'GET', ruta: '/dashboard-veterinario', descripcion: 'Dashboard veterinario' },
-        { metodo: 'GET', ruta: '/api/logout', descripcion: 'API logout' },
-        { metodo: 'GET', ruta: '/api/test', descripcion: 'Prueba de API' },
-        { metodo: 'GET', ruta: '/api/mascotas/propietario/:id', descripcion: 'Obtener mascotas de un propietario' },
-        { metodo: 'GET', ruta: '/api/debug-files', descripcion: 'Debug de archivos' },
-        { metodo: 'GET', ruta: '/api/rutas', descripcion: 'Lista de rutas (esta página)' }
-    ];
-    res.json({ success: true, rutas, total: rutas.length });
+    res.json({ 
+        success: true, 
+        message: 'API con validación funcionando',
+        rutas: [
+            'POST /api/login (con validación)',
+            'POST /api/registrar/propietario (con validación completa)',
+            'GET /api/mascotas/propietario/:id'
+        ]
+    });
 });
 
 // =============== MANEJO DE ERRORES ===============
-app.use((req, res, next) => {
-    console.log(`❌ Ruta no encontrada: ${req.method} ${req.url}`);
-    res.status(404).json({ 
-        success: false,
-        error: 'Ruta no encontrada',
-        details: { method: req.method, url: req.url, timestamp: new Date().toISOString() },
-        suggestions: [
-            'Verifica que la URL sea correcta',
-            'Asegúrate de usar el método HTTP correcto (GET, POST, etc.)',
-            'Consulta /api/rutas para ver las rutas disponibles'
-        ],
-        quickLinks: { test: '/api/test', loginPage: '/login', registerPage: '/registro', allRoutes: '/api/rutas' }
-    });
+app.use((req, res) => {
+    res.status(404).json({ success: false, error: 'Ruta no encontrada' });
 });
 
 app.use((err, req, res, next) => {
-    console.error('💥 Error no manejado:', err);
-    res.status(500).json({ success: false, error: 'Error interno del servidor', message: err.message, timestamp: new Date().toISOString() });
+    console.error('💥 Error:', err);
+    res.status(500).json({ success: false, error: 'Error interno del servidor' });
 });
 
 // =============== INICIAR SERVIDOR ===============
 const PORT = 3000;
-const HOST = 'localhost';
-
-app.listen(PORT, HOST, () => {
-    console.log('\n' + '='.repeat(70));
-    console.log('🚀 SERVIDOR INICIADO - LA MASCOT APP');
-    console.log('='.repeat(70));
-    console.log(`🌐 URL Principal: http://${HOST}:${PORT}`);
-    console.log(`🔧 API Test:      http://${HOST}:${PORT}/api/test`);
-    console.log(`🔐 Login API:     POST http://${HOST}:${PORT}/api/login`);
-    console.log(`📝 Registro API:  POST http://${HOST}:${PORT}/api/registrar/propietario`);
-    console.log(`🐾 Mascotas API:  GET http://${HOST}:${PORT}/api/mascotas/propietario/:id`);
-    console.log('='.repeat(70));
-    console.log('\n👤 USUARIOS DE PRUEBA (contraseña: 123456):');
-    console.log('   Usuario: juan, maria (propietarios)');
-    console.log('   Usuario: carlos, ana (veterinarios)');
-    console.log('   Usuario: recepcion (recepcionista)');
-    console.log('='.repeat(70));
+app.listen(PORT, () => {
+    console.log('\n' + '='.repeat(60));
+    console.log('🚀 SERVIDOR CON VALIDACIONES ACTIVADO');
+    console.log('='.repeat(60));
+    console.log(`🌐 http://localhost:${PORT}`);
+    console.log(`✅ Validación y sanitización implementada`);
+    console.log('='.repeat(60));
 });
