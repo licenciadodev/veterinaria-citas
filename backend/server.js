@@ -191,15 +191,50 @@ app.get('/api/mascotas/propietario/:id', (req, res) => {
 });
 
 // =============== RUTAS HTML ===============
-app.get('/', (req, res) => res.sendFile(path.join(__dirname, '../frontend/html/index.html')));
-app.get('/login', (req, res) => res.sendFile(path.join(__dirname, '../frontend/html/html-acceso/inicio-sesion.html')));
-app.get('/registro', (req, res) => res.sendFile(path.join(__dirname, '../frontend/html/html-acceso/registro.html')));
-app.get('/registro-propietario', (req, res) => res.sendFile(path.join(__dirname, '../frontend/html/html-registros/registro-propietario.html')));
-app.get('/registro-recepcionista', (req, res) => res.sendFile(path.join(__dirname, '../frontend/html/html-registros/registro-recepcionista.html')));
-app.get('/registro-veterinario', (req, res) => res.sendFile(path.join(__dirname, '../frontend/html/html-registros/registro-veterinario.html')));
-app.get('/dashboard-propietario', (req, res) => res.sendFile(path.join(__dirname, '../frontend/html/html-perfiles/dashboard-propietario.html')));
+// =============== RUTAS HTML ===============
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, '../frontend/html/index.html'));
+});
+
+app.get('/login', (req, res) => {
+    res.sendFile(path.join(__dirname, '../frontend/html/html-acceso/inicio-sesion.html'));
+});
+
+app.get('/registro', (req, res) => {
+    res.sendFile(path.join(__dirname, '../frontend/html/html-acceso/registro.html'));
+});
+
+app.get('/registro-propietario', (req, res) => {
+    res.sendFile(path.join(__dirname, '../frontend/html/html-registros/registro-propietario.html'));
+});
+
+app.get('/registro-recepcionista', (req, res) => {
+    res.sendFile(path.join(__dirname, '../frontend/html/html-registros/registro-recepcionista.html'));
+});
+
+app.get('/registro-veterinario', (req, res) => {
+    res.sendFile(path.join(__dirname, '../frontend/html/html-registros/registro-veterinario.html'));
+});
+
+app.get('/dashboard-propietario', (req, res) => {
+    res.sendFile(path.join(__dirname, '../frontend/html/html-perfiles/dashboard-propietario.html'));
+});
+
+// 👇 ESTA ES LA RUTA QUE FALTA
 app.get('/dashboard-recepcionista', (req, res) => {
     res.sendFile(path.join(__dirname, '../frontend/html/html-perfiles/dashboard-recepcionista.html'));
+});
+
+app.get('/dashboard-veterinario', (req, res) => {
+    res.sendFile(path.join(__dirname, '../frontend/html/html-perfiles/dashboard-veterinario.html'));
+});
+
+app.get('/citas', (req, res) => {
+    res.sendFile(path.join(__dirname, '../frontend/html/html-acceso/citas-medicas.html'));
+});
+
+app.get('/historial', (req, res) => {
+    res.sendFile(path.join(__dirname, '../frontend/html/html-acceso/historial-medico.html'));
 });
 
 // =============== INICIAR SERVIDOR ===============
