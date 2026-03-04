@@ -89,6 +89,224 @@ app.post('/api/login', [
     });
 });
 
+// =============== RUTAS PARA GESTIÓN DE CITAS ===============
+
+// Obtener todas las citas (con filtros opcionales)
+app.get('/api/citas', (req, res) => {
+    const { fecha, veterinario, estado } = req.query;
+    let query = `
+        SELECT c.*, 
+               m.nombre as mascota_nombre, m.especie,
+               u.nombre as propietario_nombre, u.telefono as propietario_telefono,
+               v.nombre as veterinario_nombre
+        FROM citas c
+        JOIN mascotas m ON c.id_mascota = m.id
+        JOIN usuarios u ON c.id_propietario = u.id
+        JOIN usuarios v ON c.id_veterinario = v.id
+        WHERE 1=1
+    `;
+    const params = [];
+    
+    if (fecha) {
+        query += ' AND c.fecha = ?';
+        params.push(fecha);
+    }
+    if (veterinario) {
+        query += ' AND c.id_veterinario = ?';
+        params.push(veterinario);
+    }
+    if (estado) {
+        query += ' AND c.estado = ?';
+        params.push(estado);
+    }
+    
+    query += ' ORDER BY c.fecha, c.hora';
+    
+    db.query(query, params, (err, results) => {
+        if (err) {
+            console.error('Error al obtener citas:', err);
+            return res.status(500).json({ success: false, error: 'Error al obtener citas' });
+        }
+        res.json({ success: true, citas: results });
+    });
+});
+
+// Obtener una cita específica por ID
+app.get('/api/citas/:id', (req, res) => {
+    const citaId = req.params.id;
+    
+    const query = `
+        SELECT c.*, 
+               m.nombre as mascota_nombre, m.especie, m.raza,
+               u.nombre as propietario_nombre, u.telefono as propietario_telefono, u.email as propietario_email,
+               v.nombre as veterinario_nombre, v.email as veterinario_email
+        FROM citas c
+        JOIN mascotas m ON c.id_mascota = m.id
+        JOIN usuarios u ON c.id_propietario = u.id
+        JOIN usuarios v ON c.id_veterinario = v.id
+        WHERE c.id = ?
+    `;
+    
+    db.query(query, [citaId], (err, results) => {
+        if (err) {
+            console.error('Error al obtener cita:', err);
+            return res.status(500).json({ success: false, error: 'Error al obtener cita' });
+        }
+        if (results.length === 0) {
+            return res.status(404).json({ success: false, error: 'Cita no encontrada' });
+        }
+        res.json({ success: true, cita: results[0] });
+    });
+});
+
+// Verificar disponibilidad de horario
+app.post('/api/citas/verificar-disponibilidad', [
+    body('fecha').isDate().withMessage('Fecha inválida'),
+    body('hora').matches(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/).withMessage('Hora inválida'),
+    body('id_veterinario').isInt().withMessage('ID de veterinario inválido')
+], validateRequest, (req, res) => {
+    const { fecha, hora, id_veterinario } = req.body;
+    
+    const query = `
+        SELECT COUNT(*) as total 
+        FROM citas 
+        WHERE fecha = ? AND hora = ? AND id_veterinario = ? AND estado != 'cancelada'
+    `;
+    
+    db.query(query, [fecha, hora, id_veterinario], (err, results) => {
+        if (err) {
+            console.error('Error al verificar disponibilidad:', err);
+            return res.status(500).json({ success: false, error: 'Error al verificar disponibilidad' });
+        }
+        
+        const disponible = results[0].total === 0;
+        res.json({ 
+            success: true, 
+            disponible: disponible,
+            mensaje: disponible ? 'Horario disponible' : 'El horario no está disponible'
+        });
+    });
+});
+
+// Crear nueva cita
+app.post('/api/citas', [
+    body('fecha').isDate().withMessage('Fecha inválida'),
+    body('hora').matches(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/).withMessage('Hora inválida'),
+    body('motivo').trim().notEmpty().withMessage('El motivo es requerido').escape(),
+    body('id_mascota').isInt().withMessage('Selecciona una mascota'),
+    body('id_veterinario').isInt().withMessage('Selecciona un veterinario'),
+    body('id_propietario').isInt().withMessage('ID de propietario inválido')
+], validateRequest, async (req, res) => {
+    const { fecha, hora, motivo, id_mascota, id_veterinario, id_propietario } = req.body;
+    
+    // Primero verificar disponibilidad
+    db.query(
+        'SELECT COUNT(*) as total FROM citas WHERE fecha = ? AND hora = ? AND id_veterinario = ? AND estado != "cancelada"',
+        [fecha, hora, id_veterinario],
+        (err, results) => {
+            if (err) {
+                console.error('Error al verificar disponibilidad:', err);
+                return res.status(500).json({ success: false, error: 'Error al crear cita' });
+            }
+            
+            if (results[0].total > 0) {
+                return res.status(400).json({ 
+                    success: false, 
+                    error: 'El horario seleccionado no está disponible'
+                });
+            }
+            
+            // Crear la cita
+            const insertQuery = `
+                INSERT INTO citas (fecha, hora, motivo, estado, id_mascota, id_veterinario, id_propietario)
+                VALUES (?, ?, ?, 'programada', ?, ?, ?)
+            `;
+            
+            db.query(insertQuery, [fecha, hora, motivo, id_mascota, id_veterinario, id_propietario], (err, result) => {
+                if (err) {
+                    console.error('Error al crear cita:', err);
+                    return res.status(500).json({ success: false, error: 'Error al crear la cita' });
+                }
+                
+                res.json({ 
+                    success: true, 
+                    message: 'Cita agendada exitosamente',
+                    citaId: result.insertId
+                });
+            });
+        }
+    );
+});
+
+// Actualizar cita
+app.put('/api/citas/:id', [
+    body('fecha').optional().isDate(),
+    body('hora').optional().matches(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/),
+    body('motivo').optional().trim().escape(),
+    body('estado').optional().isIn(['programada', 'confirmada', 'cancelada', 'completada'])
+], validateRequest, (req, res) => {
+    const citaId = req.params.id;
+    const updates = req.body;
+    const fields = [];
+    const values = [];
+
+    // Construir query dinámica
+    Object.keys(updates).forEach(key => {
+        if (updates[key] !== undefined) {
+            fields.push(`${key} = ?`);
+            values.push(updates[key]);
+        }
+    });
+
+    if (fields.length === 0) {
+        return res.status(400).json({ success: false, error: 'No hay campos para actualizar' });
+    }
+
+    values.push(citaId);
+    const query = `UPDATE citas SET ${fields.join(', ')} WHERE id = ?`;
+
+    db.query(query, values, (err, result) => {
+        if (err) {
+            console.error('Error al actualizar cita:', err);
+            return res.status(500).json({ success: false, error: 'Error al actualizar la cita' });
+        }
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ success: false, error: 'Cita no encontrada' });
+        }
+        res.json({ success: true, message: 'Cita actualizada exitosamente' });
+    });
+});
+
+// Cancelar cita (borrado lógico)
+app.delete('/api/citas/:id', (req, res) => {
+    const citaId = req.params.id;
+    
+    db.query('UPDATE citas SET estado = "cancelada" WHERE id = ?', [citaId], (err, result) => {
+        if (err) {
+            console.error('Error al cancelar cita:', err);
+            return res.status(500).json({ success: false, error: 'Error al cancelar la cita' });
+        }
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ success: false, error: 'Cita no encontrada' });
+        }
+        res.json({ success: true, message: 'Cita cancelada exitosamente' });
+    });
+});
+
+// Obtener veterinarios disponibles
+app.get('/api/veterinarios', (req, res) => {
+    db.query('SELECT id, nombre, email FROM usuarios WHERE rol = "veterinario"', (err, results) => {
+        if (err) {
+            console.error('Error al obtener veterinarios:', err);
+            return res.status(500).json({ success: false, error: 'Error al obtener veterinarios' });
+        }
+        res.json({ success: true, veterinarios: results });
+    });
+});
+
+// Obtener mascotas de un propietario (ya existe, pero la dejamos documentada)
+// GET /api/mascotas/propietario/:idPropietario
+
 // REGISTRO PROPIETARIO
 app.post('/api/registrar/propietario', (req, res) => {
     const { nombres, apellidos, email, telefono, nombre_mascota, especie, usuario, password } = req.body;
