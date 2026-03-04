@@ -67,16 +67,16 @@
                 
                 <!-- Próximas citas -->
                 <section class="appointments-section" aria-labelledby="appointments-heading">
-                    <h2 id="appointments-heading" class="section-title">Próximas Citas</h2>
-                    
+                    <h2 id="appointments-heading" class="section-title">Citas de Hoy</h2>
                     <div class="appointments-container" id="appointments-container">
-                        <div class="empty-state">
-                            <div class="empty-icon">📅</div>
-                            <h3 class="empty-title">No tienes citas programadas</h3>
-                            <p class="empty-description">Una vez que agregues tus mascotas, podrás agendar citas médicas desde aquí.</p>
-                            <button class="btn btn-primary" id="schedule-first-appointment-btn" disabled>Agendar primera cita</button>
-                        </div>
+                        <div class="loading-state">Cargando citas...</div>
                     </div>
+                </section>
+
+                <!-- Citas futuras -->
+                <section class="upcoming-section" aria-labelledby="upcoming-heading">
+                    <h2 id="upcoming-heading" class="section-title">Próximas Citas</h2>
+                    <div class="upcoming-container" id="upcoming-appointments"></div>
                 </section>
                 
                 <!-- Gestión de citas -->
