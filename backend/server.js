@@ -1,4 +1,4 @@
-// backend/server.js - VERSIÓN COMPLETA CON TODAS LAS RUTAS
+// backend/server.js - VERSIÓN COMPLETA Y CORREGIDA
 const bcrypt = require('bcryptjs');
 const express = require('express');
 const mysql = require('mysql2');
@@ -25,7 +25,7 @@ db.connect((err) => {
     if (err) {
         console.error('❌ Error MySQL:', err.message);
     } else {
-        console.log('✅ Conectado a MySQL');
+        console.log('✅ Conectado a MySQL - veterinaria_db');
     }
 });
 
@@ -46,54 +46,212 @@ const validateRequest = (req, res, next) => {
 
 // =============== RUTAS API ===============
 
-// TEST
+// 1. Test API
 app.get('/api/test', (req, res) => {
-    res.json({ success: true, message: 'API funcionando' });
+    res.json({ success: true, message: '✅ API funcionando' });
 });
 
-// LOGIN
+// 2. Obtener usuarios
+app.get('/api/usuarios', (req, res) => {
+    db.query('SELECT id, nombre, usuario, email, telefono, rol FROM usuarios', (err, results) => {
+        if (err) return res.status(500).json({ success: false, error: 'Error al obtener usuarios' });
+        res.json({ success: true, usuarios: results });
+    });
+});
+
+// 3. LOGIN
 app.post('/api/login', [
-    body('username').trim().notEmpty(),
-    body('password').notEmpty()
+    body('username').trim().notEmpty().withMessage('El usuario es requerido'),
+    body('password').notEmpty().withMessage('La contraseña es requerida')
 ], validateRequest, (req, res) => {
     const { username, password } = matchedData(req);
     
-    db.query('SELECT * FROM usuarios WHERE usuario = ? OR email = ?', [username, username], (err, results) => {
-        if (err || results.length === 0) {
-            return res.status(401).json({ success: false, error: 'Credenciales incorrectas' });
-        }
+    const query = 'SELECT * FROM usuarios WHERE usuario = ? OR email = ?';
+    
+    db.query(query, [username, username], (err, results) => {
+        if (err) return res.status(500).json({ success: false, error: 'Error en el servidor' });
+        if (results.length === 0) return res.status(401).json({ success: false, error: 'Credenciales incorrectas' });
         
         const user = results[0];
-        let passwordMatch = bcrypt.compareSync(password, user.password);
-        
+        let passwordMatch = false;
+
+        try {
+            passwordMatch = bcrypt.compareSync(password, user.password);
+        } catch (err) {
+            passwordMatch = false;
+        }
+
         if (!passwordMatch && password === user.password) {
             passwordMatch = true;
             const newHash = bcrypt.hashSync(password, 10);
             db.query('UPDATE usuarios SET password = ? WHERE id = ?', [newHash, user.id]);
         }
-        
+
         if (passwordMatch) {
-            res.json({ 
-                success: true, 
-                user: {
-                    id: user.id,
-                    nombre: user.nombre,
-                    usuario: user.usuario,
-                    email: user.email,
-                    rol: user.rol
-                }
-            });
+            const userResponse = {
+                id: user.id,
+                nombre: user.nombre,
+                usuario: user.usuario,
+                email: user.email,
+                telefono: user.telefono,
+                rol: user.rol
+            };
+            res.json({ success: true, message: `Bienvenido ${user.nombre}`, user: userResponse });
         } else {
             res.status(401).json({ success: false, error: 'Credenciales incorrectas' });
         }
     });
 });
 
-// =============== RUTAS PARA GESTIÓN DE CITAS ===============
+// 4. REGISTRO PROPIETARIO
+app.post('/api/registrar/propietario', [
+    body('nombres').trim().notEmpty().withMessage('Los nombres son requeridos').escape(),
+    body('apellidos').trim().notEmpty().withMessage('Los apellidos son requeridos').escape(),
+    body('email').trim().notEmpty().withMessage('El email es requerido').isEmail().normalizeEmail(),
+    body('telefono').trim().notEmpty().withMessage('El teléfono es requerido').escape(),
+    body('direccion').optional({ checkFalsy: true }).trim().escape(),
+    body('ciudad').optional({ checkFalsy: true }).trim().escape(),
+    body('departamento').optional({ checkFalsy: true }).trim().escape(),
+    body('nombre_mascota').trim().notEmpty().withMessage('El nombre de la mascota es requerido').escape(),
+    body('especie').trim().notEmpty().withMessage('La especie es requerida').escape(),
+    body('raza').optional({ checkFalsy: true }).trim().escape(),
+    body('edad').optional({ checkFalsy: true }).isInt({ min: 0, max: 50 }).toInt(),
+    body('usuario').trim().notEmpty().withMessage('El usuario es requerido').isLength({ min: 4 }).escape(),
+    body('password').notEmpty().withMessage('La contraseña es requerida').isLength({ min: 4 }),
+    body('confirm-password').custom((value, { req }) => value === req.body.password).withMessage('Las contraseñas no coinciden')
+], validateRequest, (req, res) => {
+    const datos = matchedData(req);
+    const { 
+        nombres, apellidos, email, telefono, direccion, ciudad, departamento,
+        nombre_mascota, especie, raza, edad, usuario, password 
+    } = datos;
 
-// Obtener todas las citas (con filtros opcionales)
+    const hashedPassword = bcrypt.hashSync(password, 10);
+    const nombreCompleto = `${nombres} ${apellidos}`.trim();
+
+    db.query('SELECT id FROM usuarios WHERE usuario = ? OR email = ?', [usuario, email], (err, results) => {
+        if (err) return res.status(500).json({ success: false, error: 'Error al verificar disponibilidad' });
+        if (results.length > 0) return res.status(400).json({ success: false, error: 'El usuario o email ya existe' });
+        
+        const insertQuery = `INSERT INTO usuarios (nombre, usuario, email, password, telefono, direccion, ciudad, departamento, rol) 
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'propietario')`;
+        const values = [nombreCompleto, usuario, email, hashedPassword, telefono, direccion || null, ciudad || null, departamento || null];
+        
+        db.query(insertQuery, values, (err, result) => {
+            if (err) return res.status(500).json({ success: false, error: 'Error al crear el usuario' });
+            
+            const userId = result.insertId;
+            
+            const mascotaQuery = `INSERT INTO mascotas (nombre, especie, raza, edad, id_propietario) VALUES (?, ?, ?, ?, ?)`;
+            db.query(mascotaQuery, [nombre_mascota, especie, raza || null, edad || null, userId], (err) => {
+                if (err) return res.status(500).json({ success: false, error: 'Usuario creado pero error al registrar mascota' });
+                
+                res.json({ 
+                    success: true, 
+                    message: 'Registro exitoso',
+                    user: { id: userId, nombre: nombreCompleto, usuario, email, rol: 'propietario' }
+                });
+            });
+        });
+    });
+});
+
+// 5. REGISTRO RECEPCIONISTA
+app.post('/api/registrar/recepcionista', [
+    body('nombres').trim().notEmpty().withMessage('Los nombres son requeridos').escape(),
+    body('apellidos').trim().notEmpty().withMessage('Los apellidos son requeridos').escape(),
+    body('email').trim().notEmpty().withMessage('El email es requerido').isEmail().normalizeEmail(),
+    body('telefono').trim().notEmpty().withMessage('El teléfono es requerido').escape(),
+    body('fecha_ingreso').notEmpty().withMessage('La fecha de ingreso es requerida').isDate(),
+    body('turno').isIn(['mañana', 'tarde', 'completo']).withMessage('Turno no válido'),
+    body('usuario').trim().notEmpty().withMessage('El usuario es requerido').isLength({ min: 4 }).escape(),
+    body('password').notEmpty().withMessage('La contraseña es requerida').isLength({ min: 4 }),
+    body('confirm_password').custom((value, { req }) => value === req.body.password).withMessage('Las contraseñas no coinciden')
+], validateRequest, (req, res) => {
+    const datos = matchedData(req);
+    const { nombres, apellidos, email, telefono, usuario, password } = datos;
+
+    const hashedPassword = bcrypt.hashSync(password, 10);
+    const nombreCompleto = `${nombres} ${apellidos}`.trim();
+
+    db.query('SELECT id FROM usuarios WHERE usuario = ? OR email = ?', [usuario, email], (err, results) => {
+        if (err) return res.status(500).json({ success: false, error: 'Error al verificar disponibilidad' });
+        if (results.length > 0) return res.status(400).json({ success: false, error: 'El usuario o email ya existe' });
+        
+        const insertQuery = `INSERT INTO usuarios (nombre, usuario, email, password, telefono, rol) VALUES (?, ?, ?, ?, ?, 'recepcionista')`;
+        const values = [nombreCompleto, usuario, email, hashedPassword, telefono];
+        
+        db.query(insertQuery, values, (err, result) => {
+            if (err) return res.status(500).json({ success: false, error: 'Error al crear el recepcionista' });
+            
+            res.json({ 
+                success: true, 
+                message: 'Recepcionista registrado',
+                user: { id: result.insertId, nombre: nombreCompleto, usuario, email, rol: 'recepcionista' }
+            });
+        });
+    });
+});
+
+// 6. REGISTRO VETERINARIO
+app.post('/api/registrar/veterinario', [
+    body('nombres').trim().notEmpty().withMessage('Los nombres son requeridos').escape(),
+    body('apellidos').trim().notEmpty().withMessage('Los apellidos son requeridos').escape(),
+    body('email').trim().notEmpty().withMessage('El email es requerido').isEmail().normalizeEmail(),
+    body('telefono').trim().notEmpty().withMessage('El teléfono es requerido').escape(),
+    body('documento').trim().notEmpty().withMessage('El documento es requerido').escape(),
+    body('tarjeta_profesional').trim().notEmpty().withMessage('La tarjeta profesional es requerida').escape(),
+    body('especialidad').notEmpty().withMessage('La especialidad es requerida'),
+    body('usuario').trim().notEmpty().withMessage('El usuario es requerido').isLength({ min: 4 }).escape(),
+    body('password').notEmpty().withMessage('La contraseña es requerida').isLength({ min: 4 }),
+    body('confirm_password').custom((value, { req }) => value === req.body.password).withMessage('Las contraseñas no coinciden')
+], validateRequest, (req, res) => {
+    const datos = matchedData(req);
+    const { nombres, apellidos, email, telefono, usuario, password } = datos;
+
+    const hashedPassword = bcrypt.hashSync(password, 10);
+    const nombreCompleto = `${nombres} ${apellidos}`.trim();
+
+    db.query('SELECT id FROM usuarios WHERE usuario = ? OR email = ?', [usuario, email], (err, results) => {
+        if (err) return res.status(500).json({ success: false, error: 'Error al verificar disponibilidad' });
+        if (results.length > 0) return res.status(400).json({ success: false, error: 'El usuario o email ya existe' });
+        
+        const insertQuery = `INSERT INTO usuarios (nombre, usuario, email, password, telefono, rol) VALUES (?, ?, ?, ?, ?, 'veterinario')`;
+        const values = [nombreCompleto, usuario, email, hashedPassword, telefono];
+        
+        db.query(insertQuery, values, (err, result) => {
+            if (err) return res.status(500).json({ success: false, error: 'Error al crear el veterinario' });
+            
+            res.json({ 
+                success: true, 
+                message: 'Veterinario registrado',
+                user: { id: result.insertId, nombre: nombreCompleto, usuario, email, rol: 'veterinario' }
+            });
+        });
+    });
+});
+
+// 7. OBTENER MASCOTAS DE UN PROPIETARIO
+app.get('/api/mascotas/propietario/:idPropietario', (req, res) => {
+    const idPropietario = req.params.idPropietario;
+    db.query('SELECT id, nombre, especie, raza, edad FROM mascotas WHERE id_propietario = ?', [idPropietario], (err, results) => {
+        if (err) return res.status(500).json({ success: false, error: 'Error al obtener mascotas' });
+        res.json({ success: true, mascotas: results });
+    });
+});
+
+// 8. OBTENER VETERINARIOS
+app.get('/api/veterinarios', (req, res) => {
+    db.query('SELECT id, nombre FROM usuarios WHERE rol = "veterinario"', (err, results) => {
+        if (err) return res.status(500).json({ success: false, error: 'Error al obtener veterinarios' });
+        res.json({ success: true, veterinarios: results });
+    });
+});
+
+// 9. OBTENER TODAS LAS CITAS (CON FILTROS)
 app.get('/api/citas', (req, res) => {
-    const { fecha, veterinario, estado } = req.query;
+    const { id_propietario, id_veterinario, estado, fecha } = req.query;
+    
     let query = `
         SELECT c.*, 
                m.nombre as mascota_nombre, m.especie,
@@ -107,17 +265,21 @@ app.get('/api/citas', (req, res) => {
     `;
     const params = [];
     
-    if (fecha) {
-        query += ' AND c.fecha = ?';
-        params.push(fecha);
+    if (id_propietario) {
+        query += ' AND c.id_propietario = ?';
+        params.push(id_propietario);
     }
-    if (veterinario) {
+    if (id_veterinario) {
         query += ' AND c.id_veterinario = ?';
-        params.push(veterinario);
+        params.push(id_veterinario);
     }
     if (estado) {
         query += ' AND c.estado = ?';
         params.push(estado);
+    }
+    if (fecha) {
+        query += ' AND c.fecha = ?';
+        params.push(fecha);
     }
     
     query += ' ORDER BY c.fecha, c.hora';
@@ -131,7 +293,7 @@ app.get('/api/citas', (req, res) => {
     });
 });
 
-// Obtener una cita específica por ID
+// 10. OBTENER CITA POR ID
 app.get('/api/citas/:id', (req, res) => {
     const citaId = req.params.id;
     
@@ -139,7 +301,7 @@ app.get('/api/citas/:id', (req, res) => {
         SELECT c.*, 
                m.nombre as mascota_nombre, m.especie, m.raza,
                u.nombre as propietario_nombre, u.telefono as propietario_telefono, u.email as propietario_email,
-               v.nombre as veterinario_nombre, v.email as veterinario_email
+               v.nombre as veterinario_nombre
         FROM citas c
         JOIN mascotas m ON c.id_mascota = m.id
         JOIN usuarios u ON c.id_propietario = u.id
@@ -159,7 +321,7 @@ app.get('/api/citas/:id', (req, res) => {
     });
 });
 
-// Verificar disponibilidad de horario
+// 11. VERIFICAR DISPONIBILIDAD
 app.post('/api/citas/verificar-disponibilidad', [
     body('fecha').isDate().withMessage('Fecha inválida'),
     body('hora').matches(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/).withMessage('Hora inválida'),
@@ -188,7 +350,7 @@ app.post('/api/citas/verificar-disponibilidad', [
     });
 });
 
-// Crear nueva cita
+// 12. CREAR NUEVA CITA
 app.post('/api/citas', [
     body('fecha').isDate().withMessage('Fecha inválida'),
     body('hora').matches(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/).withMessage('Hora inválida'),
@@ -196,216 +358,48 @@ app.post('/api/citas', [
     body('id_mascota').isInt().withMessage('Selecciona una mascota'),
     body('id_veterinario').isInt().withMessage('Selecciona un veterinario'),
     body('id_propietario').isInt().withMessage('ID de propietario inválido')
-], validateRequest, async (req, res) => {
+], validateRequest, (req, res) => {
     const { fecha, hora, motivo, id_mascota, id_veterinario, id_propietario } = req.body;
     
-    // Primero verificar disponibilidad
     db.query(
         'SELECT COUNT(*) as total FROM citas WHERE fecha = ? AND hora = ? AND id_veterinario = ? AND estado != "cancelada"',
         [fecha, hora, id_veterinario],
         (err, results) => {
-            if (err) {
-                console.error('Error al verificar disponibilidad:', err);
-                return res.status(500).json({ success: false, error: 'Error al crear cita' });
-            }
+            if (err) return res.status(500).json({ success: false, error: 'Error al verificar disponibilidad' });
             
             if (results[0].total > 0) {
-                return res.status(400).json({ 
-                    success: false, 
-                    error: 'El horario seleccionado no está disponible'
-                });
+                return res.status(400).json({ success: false, error: 'El horario no está disponible' });
             }
             
-            // Crear la cita
             const insertQuery = `
                 INSERT INTO citas (fecha, hora, motivo, estado, id_mascota, id_veterinario, id_propietario)
                 VALUES (?, ?, ?, 'programada', ?, ?, ?)
             `;
             
             db.query(insertQuery, [fecha, hora, motivo, id_mascota, id_veterinario, id_propietario], (err, result) => {
-                if (err) {
-                    console.error('Error al crear cita:', err);
-                    return res.status(500).json({ success: false, error: 'Error al crear la cita' });
-                }
+                if (err) return res.status(500).json({ success: false, error: 'Error al crear la cita' });
                 
-                res.json({ 
-                    success: true, 
-                    message: 'Cita agendada exitosamente',
-                    citaId: result.insertId
-                });
+                res.json({ success: true, message: 'Cita agendada exitosamente', citaId: result.insertId });
             });
         }
     );
 });
 
-// Actualizar cita
-app.put('/api/citas/:id', [
-    body('fecha').optional().isDate(),
-    body('hora').optional().matches(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/),
-    body('motivo').optional().trim().escape(),
-    body('estado').optional().isIn(['programada', 'confirmada', 'cancelada', 'completada'])
-], validateRequest, (req, res) => {
-    const citaId = req.params.id;
-    const updates = req.body;
-    const fields = [];
-    const values = [];
-
-    // Construir query dinámica
-    Object.keys(updates).forEach(key => {
-        if (updates[key] !== undefined) {
-            fields.push(`${key} = ?`);
-            values.push(updates[key]);
-        }
-    });
-
-    if (fields.length === 0) {
-        return res.status(400).json({ success: false, error: 'No hay campos para actualizar' });
-    }
-
-    values.push(citaId);
-    const query = `UPDATE citas SET ${fields.join(', ')} WHERE id = ?`;
-
-    db.query(query, values, (err, result) => {
-        if (err) {
-            console.error('Error al actualizar cita:', err);
-            return res.status(500).json({ success: false, error: 'Error al actualizar la cita' });
-        }
-        if (result.affectedRows === 0) {
-            return res.status(404).json({ success: false, error: 'Cita no encontrada' });
-        }
-        res.json({ success: true, message: 'Cita actualizada exitosamente' });
-    });
-});
-
-// Cancelar cita (borrado lógico)
+// 13. CANCELAR CITA
 app.delete('/api/citas/:id', (req, res) => {
     const citaId = req.params.id;
     
     db.query('UPDATE citas SET estado = "cancelada" WHERE id = ?', [citaId], (err, result) => {
-        if (err) {
-            console.error('Error al cancelar cita:', err);
-            return res.status(500).json({ success: false, error: 'Error al cancelar la cita' });
-        }
-        if (result.affectedRows === 0) {
-            return res.status(404).json({ success: false, error: 'Cita no encontrada' });
-        }
+        if (err) return res.status(500).json({ success: false, error: 'Error al cancelar la cita' });
+        if (result.affectedRows === 0) return res.status(404).json({ success: false, error: 'Cita no encontrada' });
+        
         res.json({ success: true, message: 'Cita cancelada exitosamente' });
     });
 });
 
-// Obtener veterinarios disponibles
-app.get('/api/veterinarios', (req, res) => {
-    db.query('SELECT id, nombre, email FROM usuarios WHERE rol = "veterinario"', (err, results) => {
-        if (err) {
-            console.error('Error al obtener veterinarios:', err);
-            return res.status(500).json({ success: false, error: 'Error al obtener veterinarios' });
-        }
-        res.json({ success: true, veterinarios: results });
-    });
-});
-
-// Obtener mascotas de un propietario (ya existe, pero la dejamos documentada)
-// GET /api/mascotas/propietario/:idPropietario
-
-// REGISTRO PROPIETARIO
-app.post('/api/registrar/propietario', (req, res) => {
-    const { nombres, apellidos, email, telefono, nombre_mascota, especie, usuario, password } = req.body;
-    
-    const hashedPassword = bcrypt.hashSync(password, 10);
-    const nombreCompleto = `${nombres} ${apellidos}`.trim();
-    
-    db.query('INSERT INTO usuarios (nombre, usuario, email, password, telefono, rol) VALUES (?, ?, ?, ?, ?, "propietario")',
-        [nombreCompleto, usuario, email, hashedPassword, telefono],
-        (err, result) => {
-            if (err) {
-                return res.status(500).json({ success: false, error: 'Error al registrar' });
-            }
-            
-            const userId = result.insertId;
-            
-            db.query('INSERT INTO mascotas (nombre, especie, id_propietario) VALUES (?, ?, ?)',
-                [nombre_mascota, especie, userId],
-                (err) => {
-                    res.json({ success: true, message: 'Registro exitoso' });
-                }
-            );
-        }
-    );
-});
-
-// =============== ¡RUTA NUEVA PARA RECEPCIONISTA! ===============
-app.post('/api/registrar/recepcionista', [
-    body('nombres').trim().notEmpty(),
-    body('apellidos').trim().notEmpty(),
-    body('email').isEmail().normalizeEmail(),
-    body('telefono').trim().notEmpty(),
-    body('usuario').trim().isLength({ min: 4 }),
-    body('password').isLength({ min: 4 }),
-    body('confirm_password').custom((value, { req }) => value === req.body.password)
-], validateRequest, (req, res) => {
-    const { nombres, apellidos, email, telefono, usuario, password } = matchedData(req);
-    
-    const hashedPassword = bcrypt.hashSync(password, 10);
-    const nombreCompleto = `${nombres} ${apellidos}`.trim();
-    
-    db.query('SELECT id FROM usuarios WHERE usuario = ? OR email = ?', [usuario, email], (err, results) => {
-        if (err) return res.status(500).json({ success: false, error: 'Error en BD' });
-        if (results.length > 0) return res.status(400).json({ success: false, error: 'Usuario o email ya existe' });
-        
-        db.query('INSERT INTO usuarios (nombre, usuario, email, password, telefono, rol) VALUES (?, ?, ?, ?, ?, "recepcionista")',
-            [nombreCompleto, usuario, email, hashedPassword, telefono],
-            (err, result) => {
-                if (err) return res.status(500).json({ success: false, error: 'Error al registrar' });
-                
-                res.json({ 
-                    success: true, 
-                    message: 'Recepcionista registrado',
-                    user: { id: result.insertId, nombre: nombreCompleto, usuario, email, rol: 'recepcionista' }
-                });
-            }
-        );
-    });
-});
-
-// =============== RUTA NUEVA PARA VETERINARIO ===============
-app.post('/api/registrar/veterinario', [
-    body('nombres').trim().notEmpty(),
-    body('apellidos').trim().notEmpty(),
-    body('email').isEmail().normalizeEmail(),
-    body('telefono').trim().notEmpty(),
-    body('usuario').trim().isLength({ min: 4 }),
-    body('password').isLength({ min: 4 }),
-    body('confirm_password').custom((value, { req }) => value === req.body.password)
-], validateRequest, (req, res) => {
-    const { nombres, apellidos, email, telefono, usuario, password } = matchedData(req);
-    
-    const hashedPassword = bcrypt.hashSync(password, 10);
-    const nombreCompleto = `${nombres} ${apellidos}`.trim();
-    
-    db.query('SELECT id FROM usuarios WHERE usuario = ? OR email = ?', [usuario, email], (err, results) => {
-        if (err) return res.status(500).json({ success: false, error: 'Error en BD' });
-        if (results.length > 0) return res.status(400).json({ success: false, error: 'Usuario o email ya existe' });
-        
-        db.query('INSERT INTO usuarios (nombre, usuario, email, password, telefono, rol) VALUES (?, ?, ?, ?, ?, "veterinario")',
-            [nombreCompleto, usuario, email, hashedPassword, telefono],
-            (err, result) => {
-                if (err) return res.status(500).json({ success: false, error: 'Error al registrar' });
-                
-                res.json({ 
-                    success: true, 
-                    message: 'Veterinario registrado',
-                    user: { id: result.insertId, nombre: nombreCompleto, usuario, email, rol: 'veterinario' }
-                });
-            }
-        );
-    });
-});
-
-// RUTA PARA MASCOTAS
-app.get('/api/mascotas/propietario/:id', (req, res) => {
-    db.query('SELECT * FROM mascotas WHERE id_propietario = ?', [req.params.id], (err, results) => {
-        res.json({ success: true, mascotas: results });
-    });
+// 14. LOGOUT
+app.get('/api/logout', (req, res) => {
+    res.json({ success: true, message: 'Sesión cerrada' });
 });
 
 // =============== RUTAS HTML ===============
@@ -437,7 +431,6 @@ app.get('/dashboard-propietario', (req, res) => {
     res.sendFile(path.join(__dirname, '../frontend/html/html-perfiles/dashboard-propietario.html'));
 });
 
-// 👇 ESTA ES LA RUTA QUE FALTA
 app.get('/dashboard-recepcionista', (req, res) => {
     res.sendFile(path.join(__dirname, '../frontend/html/html-perfiles/dashboard-recepcionista.html'));
 });
@@ -454,16 +447,57 @@ app.get('/historial', (req, res) => {
     res.sendFile(path.join(__dirname, '../frontend/html/html-acceso/historial-medico.html'));
 });
 
+// =============== REDIRECCIONES ===============
+app.get('/index.html', (req, res) => res.redirect('/'));
+app.get('/html-acceso/inicio-sesion.html', (req, res) => res.redirect('/login'));
+app.get('/html-acceso/registro.html', (req, res) => res.redirect('/registro'));
+
+// =============== RUTA DE VERIFICACIÓN ===============
+app.get('/api/rutas', (req, res) => {
+    res.json({ 
+        success: true, 
+        rutas: [
+            'POST /api/registrar/propietario',
+            'POST /api/registrar/recepcionista',
+            'POST /api/registrar/veterinario',
+            'POST /api/login',
+            'GET /api/mascotas/propietario/:id',
+            'GET /api/veterinarios',
+            'GET /api/citas',
+            'GET /api/citas/:id',
+            'POST /api/citas',
+            'POST /api/citas/verificar-disponibilidad',
+            'DELETE /api/citas/:id'
+        ]
+    });
+});
+
+// =============== MANEJO DE ERRORES ===============
+app.use((req, res) => {
+    res.status(404).json({ success: false, error: 'Ruta no encontrada' });
+});
+
+app.use((err, req, res, next) => {
+    console.error('💥 Error:', err);
+    res.status(500).json({ success: false, error: 'Error interno del servidor' });
+});
+
 // =============== INICIAR SERVIDOR ===============
 const PORT = 3000;
 app.listen(PORT, () => {
-    console.log('\n' + '='.repeat(50));
-    console.log('🚀 SERVIDOR INICIADO EN PUERTO 3000');
-    console.log('='.repeat(50));
-    console.log('✅ Rutas activas:');
+    console.log('\n' + '='.repeat(60));
+    console.log('🚀 SERVIDOR INICIADO CORRECTAMENTE');
+    console.log('='.repeat(60));
+    console.log(`🌐 http://localhost:${PORT}`);
+    console.log('✅ Rutas disponibles:');
     console.log('   • POST /api/registrar/propietario');
-    console.log('   • POST /api/registrar/recepcionista ✓');
-    console.log('   • POST /api/registrar/veterinario ✓');
+    console.log('   • POST /api/registrar/recepcionista');
+    console.log('   • POST /api/registrar/veterinario');
     console.log('   • POST /api/login');
-    console.log('='.repeat(50));
+    console.log('   • GET /api/mascotas/propietario/:id');
+    console.log('   • GET /api/veterinarios');
+    console.log('   • GET /api/citas');
+    console.log('   • POST /api/citas');
+    console.log('   • DELETE /api/citas/:id');
+    console.log('='.repeat(60));
 });
