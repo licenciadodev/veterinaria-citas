@@ -10,6 +10,8 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
     
     const user = JSON.parse(userData);
+    console.log('Usuario actual:', user);
+    
     if (user.rol !== 'propietario') {
         alert('No tienes permiso para acceder');
         window.location.href = '/';
@@ -17,6 +19,9 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
     
     window.currentUser = user;
+    
+    // ===== ACTUALIZAR INFORMACIÓN DEL USUARIO =====
+    actualizarInfoUsuario(user);
     
     // Cargar datos
     await Promise.all([
@@ -27,6 +32,18 @@ document.addEventListener('DOMContentLoaded', async function() {
     configurarFechaHora();
     configurarEventListeners();
 });
+
+// ===== FUNCIÓN NUEVA: Actualizar el nombre en el saludo =====
+function actualizarInfoUsuario(usuario) {
+    const userNameElement = document.getElementById('user-name');
+    if (userNameElement) {
+        // Mostrar el nombre completo del usuario
+        userNameElement.textContent = usuario.nombre || 'Usuario';
+        console.log('✅ Nombre actualizado a:', usuario.nombre);
+    } else {
+        console.warn('⚠️ Elemento user-name no encontrado en el DOM');
+    }
+}
 
 async function cargarMascotas(idPropietario) {
     const petsContainer = document.getElementById('pets-container');
@@ -47,68 +64,52 @@ async function cargarMascotas(idPropietario) {
     }
 }
 
-// NUEVA FUNCIÓN: Cargar citas del propietario
 async function cargarCitas(idPropietario) {
     const appointmentsContainer = document.getElementById('appointments-container');
     const upcomingContainer = document.getElementById('upcoming-appointments');
-    const notificationsContainer = document.getElementById('notifications-container');
+    
+    if (!appointmentsContainer) return;
     
     try {
-        // Obtener citas del propietario
-        const response = await fetch(`/api/citas?id_propietario=${idPropietario}&estado=programada`);
+        const hoy = new Date().toISOString().split('T')[0];
+        
+        const response = await fetch(`/api/citas?id_propietario=${idPropietario}&estado=programada&fecha_desde=${hoy}`);
         const data = await response.json();
         
+        console.log('Citas cargadas:', data);
+        
         if (data.success && data.citas.length > 0) {
-            // Separar citas de hoy y próximas
-            const hoy = new Date().toISOString().split('T')[0];
             const citasHoy = data.citas.filter(c => c.fecha === hoy);
             const citasFuturas = data.citas.filter(c => c.fecha > hoy);
             
-            // Mostrar en el contenedor principal
-            if (appointmentsContainer) {
-                appointmentsContainer.innerHTML = citasHoy.length > 0 
-                    ? citasHoy.map(cita => crearTarjetaCita(cita)).join('')
-                    : '<div class="empty-state">No tienes citas para hoy</div>';
+            if (citasHoy.length > 0) {
+                appointmentsContainer.innerHTML = citasHoy.map(cita => crearTarjetaCita(cita)).join('');
+            } else {
+                appointmentsContainer.innerHTML = '<div class="empty-state">No tienes citas para hoy</div>';
             }
             
-            // Mostrar próximas citas en una sección (si existe)
             if (upcomingContainer) {
-                upcomingContainer.innerHTML = citasFuturas.length > 0
-                    ? citasFuturas.map(cita => crearTarjetaCitaResumida(cita)).join('')
-                    : '<div class="empty-state">No tienes citas próximas</div>';
-            }
-            
-            // Notificaciones (citas próximas)
-            if (notificationsContainer && citasFuturas.length > 0) {
-                notificationsContainer.innerHTML = citasFuturas.map(cita => `
-                    <div class="notification-item">
-                        <span class="notification-icon">📅</span>
-                        <div class="notification-content">
-                            <strong>${cita.mascota_nombre}</strong> - ${formatearFecha(cita.fecha)} ${cita.hora.substring(0,5)}
-                            <p>${cita.motivo.substring(0,30)}...</p>
-                        </div>
-                    </div>
-                `).join('');
+                if (citasFuturas.length > 0) {
+                    upcomingContainer.innerHTML = citasFuturas.map(cita => crearTarjetaCitaResumida(cita)).join('');
+                } else {
+                    upcomingContainer.innerHTML = '<div class="empty-state">No tienes citas próximas</div>';
+                }
             }
         } else {
-            if (appointmentsContainer) {
-                appointmentsContainer.innerHTML = '<div class="empty-state">No tienes citas programadas</div>';
-            }
-            if (notificationsContainer) {
-                notificationsContainer.innerHTML = '<div class="empty-state">No tienes notificaciones</div>';
+            appointmentsContainer.innerHTML = '<div class="empty-state">No tienes citas programadas</div>';
+            if (upcomingContainer) {
+                upcomingContainer.innerHTML = '<div class="empty-state">No tienes citas próximas</div>';
             }
         }
     } catch (error) {
         console.error('Error al cargar citas:', error);
-        if (appointmentsContainer) {
-            appointmentsContainer.innerHTML = '<div class="error-state">Error al cargar citas</div>';
-        }
+        appointmentsContainer.innerHTML = '<div class="error-state">Error al cargar citas</div>';
     }
 }
 
 function crearTarjetaCita(cita) {
     return `
-        <div class="appointment-item" onclick="verDetalleCita(${cita.id})">
+        <div class="appointment-item" onclick="window.location.href='/citas?id=${cita.id}'">
             <div class="appointment-header">
                 <span class="appointment-time">${cita.hora.substring(0,5)}</span>
                 <span class="appointment-status ${cita.estado}">${cita.estado}</span>
@@ -124,7 +125,7 @@ function crearTarjetaCita(cita) {
 
 function crearTarjetaCitaResumida(cita) {
     return `
-        <div class="upcoming-item" onclick="verDetalleCita(${cita.id})">
+        <div class="upcoming-item" onclick="window.location.href='/citas?id=${cita.id}'">
             <span class="upcoming-date">${formatearFecha(cita.fecha)}</span>
             <span class="upcoming-time">${cita.hora.substring(0,5)}</span>
             <span class="upcoming-pet">${cita.mascota_nombre}</span>
@@ -153,9 +154,8 @@ function mostrarMascotas(mascotas) {
     
     petsContainer.innerHTML = html;
     
-    // Habilitar botones
-    document.getElementById('schedule-first-appointment-btn')?.classList.remove('disabled');
-    document.getElementById('schedule-appointment-btn')?.classList.remove('disabled');
+    const scheduleBtn = document.getElementById('schedule-appointment-btn');
+    if (scheduleBtn) scheduleBtn.classList.remove('disabled');
 }
 
 function mostrarEstadoVacioMascotas() {
@@ -194,7 +194,6 @@ function configurarFechaHora() {
 }
 
 function configurarEventListeners() {
-    // Logout
     document.querySelectorAll('a[href="/login"]').forEach(link => {
         link.addEventListener('click', function(e) {
             e.preventDefault();
@@ -205,11 +204,13 @@ function configurarEventListeners() {
         });
     });
     
-    // Botón Agendar cita
-    document.getElementById('schedule-appointment-btn')?.addEventListener('click', function(e) {
-        e.preventDefault();
-        window.location.href = '/citas';
-    });
+    const scheduleBtn = document.getElementById('schedule-appointment-btn');
+    if (scheduleBtn) {
+        scheduleBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            window.location.href = '/citas';
+        });
+    }
 }
 
 function formatearFecha(fecha) {
@@ -217,8 +218,3 @@ function formatearFecha(fecha) {
         day: '2-digit', month: '2-digit', year: 'numeric'
     });
 }
-
-// Función global para ver detalle de cita
-window.verDetalleCita = function(citaId) {
-    window.location.href = `/citas?id=${citaId}`;
-};
