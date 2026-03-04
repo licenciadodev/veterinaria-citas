@@ -1,5 +1,7 @@
 // frontend/js/js-acceso/citas-medicas.js
 document.addEventListener('DOMContentLoaded', async function() {
+    console.log('=== PÁGINA DE CITAS INICIANDO ===');
+    
     // Verificar sesión
     const userData = localStorage.getItem('user');
     if (!userData) {
@@ -7,76 +9,96 @@ document.addEventListener('DOMContentLoaded', async function() {
         return;
     }
     
-    const user = JSON.parse(userData);
-    window.currentUser = user;
-    
-    // Configurar selector de rol
-    configurarRoleTabs(user.rol);
-    
-    // Cargar datos iniciales
-    await cargarVeterinarios();
-    await cargarMascotas(user.id);
-    await cargarCitas();
-    
-    // Configurar fecha mínima (hoy)
-    const fechaInput = document.getElementById('fecha');
-    if (fechaInput) {
-        const hoy = new Date().toISOString().split('T')[0];
-        fechaInput.min = hoy;
-    }
-    
-    // Configurar horarios disponibles
-    document.getElementById('fecha').addEventListener('change', generarHorarios);
-    document.getElementById('veterinario').addEventListener('change', verificarDisponibilidad);
-    
-    // Configurar filtros
-    document.getElementById('filter-estado').addEventListener('change', cargarCitas);
-    document.getElementById('filter-fecha').addEventListener('change', cargarCitas);
-    
-    // Configurar formulario
-    document.getElementById('appointment-form').addEventListener('submit', agendarCita);
-    document.getElementById('cancel-form').addEventListener('click', limpiarFormulario);
-    
-    // Configurar logout
-    document.getElementById('logout-link')?.addEventListener('click', function(e) {
-        e.preventDefault();
-        if (confirm('¿Cerrar sesión?')) {
-            localStorage.removeItem('user');
-            window.location.href = '/login';
+    try {
+        const user = JSON.parse(userData);
+        window.currentUser = user;
+        console.log('Usuario actual:', user);
+        
+        // Configurar menú según rol
+        configurarMenu(user.rol);
+        
+        // Cargar datos iniciales
+        await Promise.all([
+            cargarVeterinarios(),
+            cargarMascotas(user.id),
+            cargarCitas()
+        ]);
+        
+        // Configurar fecha mínima (hoy)
+        const fechaInput = document.getElementById('fecha');
+        if (fechaInput) {
+            const hoy = new Date().toISOString().split('T')[0];
+            fechaInput.min = hoy;
         }
-    });
+        
+        // Configurar horarios disponibles
+        document.getElementById('fecha')?.addEventListener('change', generarHorarios);
+        document.getElementById('hora')?.addEventListener('change', verificarDisponibilidad);
+        document.getElementById('veterinario')?.addEventListener('change', verificarDisponibilidad);
+        
+        // Configurar filtros
+        document.getElementById('filter-estado')?.addEventListener('change', cargarCitas);
+        document.getElementById('filter-fecha')?.addEventListener('change', cargarCitas);
+        
+        // Configurar formulario
+        document.getElementById('appointment-form')?.addEventListener('submit', agendarCita);
+        document.getElementById('cancel-form')?.addEventListener('click', limpiarFormulario);
+        
+        // Configurar logout
+        document.querySelectorAll('a[href="/login"]').forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                if (confirm('¿Cerrar sesión?')) {
+                    localStorage.removeItem('user');
+                    window.location.href = '/login';
+                }
+            });
+        });
+        
+        // Cerrar modal con ESC
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                document.getElementById('cita-modal').style.display = 'none';
+            }
+        });
+        
+    } catch (error) {
+        console.error('Error en inicialización:', error);
+    }
 });
 
-function configurarRoleTabs(rolUsuario) {
-    const tabs = document.querySelectorAll('.tab-btn');
-    const roleTabs = document.getElementById('role-tabs');
+function configurarMenu(rolUsuario) {
+    const navList = document.querySelector('.nav-list');
+    if (!navList) return;
     
-    // Mostrar solo tabs relevantes
-    tabs.forEach(tab => {
-        if (tab.dataset.role === rolUsuario || rolUsuario === 'recepcionista') {
-            tab.style.display = 'block';
-        } else {
-            tab.style.display = 'none';
-        }
-    });
+    let menuItems = '';
     
-    // Activar tab según rol
-    tabs.forEach(tab => {
-        if (tab.dataset.role === rolUsuario) {
-            tab.classList.add('active');
-        } else {
-            tab.classList.remove('active');
-        }
-    });
+    if (rolUsuario === 'propietario') {
+        menuItems = `
+            <li><a href="/" class="nav-link">Inicio</a></li>
+            <li><a href="/dashboard-propietario" class="nav-link">Mi Panel</a></li>
+            <li><a href="/citas" class="nav-link active">Citas</a></li>
+            <li><a href="/historial" class="nav-link">Historial</a></li>
+            <li><a href="/login" class="nav-link">Cerrar Sesión</a></li>
+        `;
+    } else if (rolUsuario === 'recepcionista') {
+        menuItems = `
+            <li><a href="/" class="nav-link">Inicio</a></li>
+            <li><a href="/dashboard-recepcionista" class="nav-link">Mi Panel</a></li>
+            <li><a href="/citas" class="nav-link active">Citas</a></li>
+            <li><a href="/login" class="nav-link">Cerrar Sesión</a></li>
+        `;
+    } else if (rolUsuario === 'veterinario') {
+        menuItems = `
+            <li><a href="/" class="nav-link">Inicio</a></li>
+            <li><a href="/dashboard-veterinario" class="nav-link">Mi Panel</a></li>
+            <li><a href="/citas" class="nav-link active">Citas</a></li>
+            <li><a href="/historial" class="nav-link">Historial</a></li>
+            <li><a href="/login" class="nav-link">Cerrar Sesión</a></li>
+        `;
+    }
     
-    // Event listeners para tabs
-    tabs.forEach(tab => {
-        tab.addEventListener('click', function() {
-            tabs.forEach(t => t.classList.remove('active'));
-            this.classList.add('active');
-            cargarCitas(); // Recargar según el rol seleccionado
-        });
-    });
+    navList.innerHTML = menuItems;
 }
 
 async function cargarVeterinarios() {
@@ -85,7 +107,7 @@ async function cargarVeterinarios() {
         const data = await response.json();
         
         const select = document.getElementById('veterinario');
-        if (data.veterinarios && data.veterinarios.length > 0) {
+        if (select && data.veterinarios && data.veterinarios.length > 0) {
             select.innerHTML = '<option value="">Seleccione un veterinario</option>' +
                 data.veterinarios.map(v => `<option value="${v.id}">${v.nombre}</option>`).join('');
         }
@@ -100,11 +122,13 @@ async function cargarMascotas(propietarioId) {
         const data = await response.json();
         
         const select = document.getElementById('mascota');
-        if (data.mascotas && data.mascotas.length > 0) {
-            select.innerHTML = '<option value="">Seleccione una mascota</option>' +
-                data.mascotas.map(m => `<option value="${m.id}">${m.nombre} (${m.especie})</option>`).join('');
-        } else {
-            select.innerHTML = '<option value="">No tienes mascotas registradas</option>';
+        if (select) {
+            if (data.mascotas && data.mascotas.length > 0) {
+                select.innerHTML = '<option value="">Seleccione una mascota</option>' +
+                    data.mascotas.map(m => `<option value="${m.id}">${m.nombre} (${m.especie})</option>`).join('');
+            } else {
+                select.innerHTML = '<option value="">No tienes mascotas registradas</option>';
+            }
         }
     } catch (error) {
         console.error('Error al cargar mascotas:', error);
@@ -113,12 +137,12 @@ async function cargarMascotas(propietarioId) {
 
 function generarHorarios() {
     const select = document.getElementById('hora');
-    const horas = [];
+    if (!select) return;
     
-    // Generar horas de 8:00 a 18:00 cada 30 minutos
+    const horas = [];
     for (let h = 8; h <= 18; h++) {
         for (let m = 0; m < 60; m += 30) {
-            if (h === 18 && m > 0) continue; // No pasar de las 18:00
+            if (h === 18 && m > 0) continue;
             const hora = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
             horas.push(hora);
         }
@@ -129,9 +153,9 @@ function generarHorarios() {
 }
 
 async function verificarDisponibilidad() {
-    const fecha = document.getElementById('fecha').value;
-    const hora = document.getElementById('hora').value;
-    const veterinario = document.getElementById('veterinario').value;
+    const fecha = document.getElementById('fecha')?.value;
+    const hora = document.getElementById('hora')?.value;
+    const veterinario = document.getElementById('veterinario')?.value;
     
     if (!fecha || !hora || !veterinario) return;
     
@@ -167,10 +191,10 @@ async function agendarCita(e) {
         id_propietario: user.id
     };
     
-    // Validaciones básicas
+    // Validar campos
     for (let [key, value] of Object.entries(citaData)) {
         if (!value) {
-            alert(`Por favor completa el campo ${key}`);
+            alert('Por favor completa todos los campos');
             return;
         }
     }
@@ -200,31 +224,35 @@ async function agendarCita(e) {
 async function cargarCitas() {
     const container = document.getElementById('appointments-container');
     const user = window.currentUser;
-    const rolActivo = document.querySelector('.tab-btn.active')?.dataset.role || user.rol;
+    
+    if (!container) return;
     
     try {
+        // Construir URL según el rol del usuario
         let url = '/api/citas?';
         
-        // Filtrar según rol activo
-        if (rolActivo === 'propietario') {
+        if (user.rol === 'propietario') {
             url += `id_propietario=${user.id}`;
-        } else if (rolActivo === 'veterinario') {
+        } else if (user.rol === 'veterinario') {
             url += `id_veterinario=${user.id}`;
         }
+        // Si es recepcionista, ve todas las citas
         
         // Filtros adicionales
-        const estado = document.getElementById('filter-estado').value;
-        const fecha = document.getElementById('filter-fecha').value;
+        const estado = document.getElementById('filter-estado')?.value;
+        const fecha = document.getElementById('filter-fecha')?.value;
         
         if (estado) url += `&estado=${estado}`;
         if (fecha) url += `&fecha=${fecha}`;
+        
+        console.log('Cargando citas desde:', url);
         
         const response = await fetch(url);
         const data = await response.json();
         
         if (data.citas && data.citas.length > 0) {
             container.innerHTML = data.citas.map(cita => `
-                <div class="appointment-card ${cita.estado}" onclick="verDetalleCita(${cita.id})">
+                <div class="appointment-card ${cita.estado}" onclick="window.verDetalleCita(${cita.id})">
                     <div class="appointment-header">
                         <span class="appointment-date">${formatearFecha(cita.fecha)} ${cita.hora.substring(0,5)}</span>
                         <span class="appointment-status ${cita.estado}">${cita.estado}</span>
@@ -246,12 +274,8 @@ async function cargarCitas() {
 }
 
 function limpiarFormulario() {
-    document.getElementById('appointment-form').reset();
-    document.getElementById('mascota-error').textContent = '';
-    document.getElementById('veterinario-error').textContent = '';
-    document.getElementById('fecha-error').textContent = '';
-    document.getElementById('hora-error').textContent = '';
-    document.getElementById('motivo-error').textContent = '';
+    document.getElementById('appointment-form')?.reset();
+    document.querySelectorAll('.form-error').forEach(el => el.textContent = '');
 }
 
 function formatearFecha(fecha) {
@@ -281,6 +305,8 @@ function mostrarModalCita(cita) {
     const detalles = document.getElementById('cita-detalles');
     const user = window.currentUser;
     
+    if (!modal || !detalles) return;
+    
     detalles.innerHTML = `
         <p><strong>Fecha:</strong> ${formatearFecha(cita.fecha)} ${cita.hora.substring(0,5)}</p>
         <p><strong>Mascota:</strong> ${cita.mascota_nombre}</p>
@@ -291,27 +317,50 @@ function mostrarModalCita(cita) {
         <p><strong>Estado:</strong> <span class="status-badge ${cita.estado}">${cita.estado}</span></p>
     `;
     
-    // Mostrar botones según rol y estado
+    // Configurar acciones según rol y estado
     const actions = document.getElementById('modal-actions');
-    if (user.rol === 'recepcionista' || 
-        (user.rol === 'veterinario' && cita.estado !== 'cancelada' && cita.estado !== 'completada')) {
-        actions.style.display = 'block';
-        
-        document.getElementById('edit-cita').onclick = () => editarCita(cita);
-        document.getElementById('cancel-cita').onclick = () => cancelarCita(cita.id);
-    } else {
-        actions.style.display = 'none';
+    const editBtn = document.getElementById('edit-cita');
+    const cancelBtn = document.getElementById('cancel-cita');
+    
+    if (actions && editBtn && cancelBtn) {
+        // Mostrar acciones solo si corresponde
+        if (user.rol === 'recepcionista' || 
+            (user.rol === 'propietario' && cita.estado === 'programada') ||
+            (user.rol === 'veterinario' && cita.estado !== 'cancelada' && cita.estado !== 'completada')) {
+            
+            actions.style.display = 'flex';
+            
+            // Configurar botón de editar
+            editBtn.onclick = () => {
+                alert('Funcionalidad de edición en desarrollo');
+                modal.style.display = 'none';
+            };
+            
+            // Configurar botón de cancelar
+            cancelBtn.onclick = () => window.cancelarCita(cita.id);
+            
+        } else {
+            actions.style.display = 'none';
+        }
     }
     
     modal.style.display = 'block';
     
-    // Cerrar modal
+    // Cerrar modal al hacer clic en la X
     document.getElementById('close-modal').onclick = () => {
         modal.style.display = 'none';
     };
+    
+    // Cerrar modal al hacer clic fuera
+    window.onclick = function(event) {
+        if (event.target === modal) {
+            modal.style.display = 'none';
+        }
+    };
 }
 
-async function cancelarCita(citaId) {
+// Función global para cancelar cita
+window.cancelarCita = async function(citaId) {
     if (!confirm('¿Estás seguro de cancelar esta cita?')) return;
     
     try {
@@ -322,18 +371,14 @@ async function cancelarCita(citaId) {
         const data = await response.json();
         
         if (data.success) {
-            alert('✅ Cita cancelada');
+            alert('✅ Cita cancelada exitosamente');
             document.getElementById('cita-modal').style.display = 'none';
-            cargarCitas();
+            cargarCitas(); // Recargar la lista
         } else {
             alert('Error: ' + data.error);
         }
     } catch (error) {
         console.error('Error al cancelar cita:', error);
+        alert('Error al conectar con el servidor');
     }
-}
-
-function editarCita(cita) {
-    alert('Funcionalidad de edición - En desarrollo');
-    // Aquí implementaremos la edición después
-}
+};
