@@ -2,139 +2,134 @@
 document.addEventListener('DOMContentLoaded', async function() {
     console.log('=== DASHBOARD PROPIETARIO INICIANDO ===');
     
-    // 1. VERIFICAR SESIÓN
+    // Verificar sesión
     const userData = localStorage.getItem('user');
-    
     if (!userData) {
-        console.log('❌ No hay sesión activa, redirigiendo a login');
         window.location.href = '/login';
         return;
     }
     
-    // 2. PARSEAR DATOS DEL USUARIO
-    let user;
-    try {
-        user = JSON.parse(userData);
-        console.log('✅ Usuario encontrado:', user);
-        console.log('📌 ID del propietario:', user.id);
-    } catch (error) {
-        console.error('❌ Error al parsear datos del usuario:', error);
-        localStorage.removeItem('user');
-        window.location.href = '/login';
-        return;
-    }
-    
-    // 3. VERIFICAR ROL
+    const user = JSON.parse(userData);
     if (user.rol !== 'propietario') {
-        console.log(`❌ Acceso denegado. Rol: ${user.rol}, se requiere: propietario`);
-        alert('No tienes permiso para acceder a esta página');
+        alert('No tienes permiso para acceder');
         window.location.href = '/';
         return;
     }
     
-    // 4. GUARDAR EL ID DEL USUARIO GLOBALMENTE PARA USO EN OTRAS FUNCIONES
-    window.currentUserId = user.id;
+    window.currentUser = user;
     
-    // 5. CARGAR DASHBOARD
-    console.log('📊 Cargando dashboard para:', user.nombre);
-    await cargarDashboard(user);
+    // Cargar datos
+    await Promise.all([
+        cargarMascotas(user.id),
+        cargarCitas(user.id)
+    ]);
+    
+    configurarFechaHora();
+    configurarEventListeners();
 });
 
-async function cargarDashboard(usuario) {
-    // Actualizar información del usuario
-    actualizarInfoUsuario(usuario);
-    
-    // Configurar fecha y hora
-    configurarFechaHora();
-    
-    // Cargar mascotas del propietario
-    await cargarMascotas();
-    
-    // Cargar citas (pendiente de implementar)
-    cargarCitasSimuladas();
-    
-    // Configurar event listeners
-    configurarEventListeners(usuario);
-}
-
-function actualizarInfoUsuario(usuario) {
-    const userNameElement = document.getElementById('user-name');
-    if (userNameElement) {
-        userNameElement.textContent = usuario.nombre || 'Usuario';
-    }
-}
-
-function configurarFechaHora() {
-    const datetimeElement = document.getElementById('current-datetime');
-    if (!datetimeElement) return;
-    
-    function actualizar() {
-        const now = new Date();
-        const options = {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: true
-        };
-        datetimeElement.textContent = now.toLocaleDateString('es-ES', options);
-    }
-    
-    actualizar();
-    setInterval(actualizar, 60000);
-}
-
-async function cargarMascotas() {
+async function cargarMascotas(idPropietario) {
     const petsContainer = document.getElementById('pets-container');
-    if (!petsContainer) {
-        console.error('❌ No se encontró el elemento pets-container');
-        return;
-    }
-    
-    const userId = window.currentUserId;
-    if (!userId) {
-        console.error('❌ No hay ID de usuario disponible');
-        mostrarEstadoVacioMascotas();
-        return;
-    }
-    
-    console.log(`🔍 Solicitando mascotas para propietario ID: ${userId}`);
+    if (!petsContainer) return;
     
     try {
-        const response = await fetch(`/api/mascotas/propietario/${userId}`);
-        console.log('📥 Respuesta recibida:', response.status, response.statusText);
-        
-        if (!response.ok) {
-            throw new Error(`Error HTTP: ${response.status}`);
-        }
-        
+        const response = await fetch(`/api/mascotas/propietario/${idPropietario}`);
         const data = await response.json();
-        console.log('📦 Datos recibidos:', data);
         
-        // Verificar que data.mascotas existe y es un array
-        if (data.success && Array.isArray(data.mascotas) && data.mascotas.length > 0) {
-            console.log(`✅ ${data.mascotas.length} mascotas encontradas`);
+        if (data.success && data.mascotas.length > 0) {
             mostrarMascotas(data.mascotas);
         } else {
-            console.log('⚠️ No se encontraron mascotas para este propietario');
             mostrarEstadoVacioMascotas();
         }
     } catch (error) {
-        console.error('❌ Error al cargar mascotas:', error);
+        console.error('Error al cargar mascotas:', error);
         mostrarEstadoVacioMascotas();
-        
-        // Mostrar mensaje de error en el contenedor
-        petsContainer.innerHTML = `
-            <div class="empty-state error-state">
-                <div class="empty-icon">⚠️</div>
-                <h3 class="empty-title">Error al cargar mascotas</h3>
-                <p class="empty-description">No se pudieron cargar tus mascotas. Intenta recargar la página.</p>
-                <button class="btn btn-primary" onclick="location.reload()">Recargar página</button>
-            </div>
-        `;
     }
+}
+
+// NUEVA FUNCIÓN: Cargar citas del propietario
+async function cargarCitas(idPropietario) {
+    const appointmentsContainer = document.getElementById('appointments-container');
+    const upcomingContainer = document.getElementById('upcoming-appointments');
+    const notificationsContainer = document.getElementById('notifications-container');
+    
+    try {
+        // Obtener citas del propietario
+        const response = await fetch(`/api/citas?id_propietario=${idPropietario}&estado=programada`);
+        const data = await response.json();
+        
+        if (data.success && data.citas.length > 0) {
+            // Separar citas de hoy y próximas
+            const hoy = new Date().toISOString().split('T')[0];
+            const citasHoy = data.citas.filter(c => c.fecha === hoy);
+            const citasFuturas = data.citas.filter(c => c.fecha > hoy);
+            
+            // Mostrar en el contenedor principal
+            if (appointmentsContainer) {
+                appointmentsContainer.innerHTML = citasHoy.length > 0 
+                    ? citasHoy.map(cita => crearTarjetaCita(cita)).join('')
+                    : '<div class="empty-state">No tienes citas para hoy</div>';
+            }
+            
+            // Mostrar próximas citas en una sección (si existe)
+            if (upcomingContainer) {
+                upcomingContainer.innerHTML = citasFuturas.length > 0
+                    ? citasFuturas.map(cita => crearTarjetaCitaResumida(cita)).join('')
+                    : '<div class="empty-state">No tienes citas próximas</div>';
+            }
+            
+            // Notificaciones (citas próximas)
+            if (notificationsContainer && citasFuturas.length > 0) {
+                notificationsContainer.innerHTML = citasFuturas.map(cita => `
+                    <div class="notification-item">
+                        <span class="notification-icon">📅</span>
+                        <div class="notification-content">
+                            <strong>${cita.mascota_nombre}</strong> - ${formatearFecha(cita.fecha)} ${cita.hora.substring(0,5)}
+                            <p>${cita.motivo.substring(0,30)}...</p>
+                        </div>
+                    </div>
+                `).join('');
+            }
+        } else {
+            if (appointmentsContainer) {
+                appointmentsContainer.innerHTML = '<div class="empty-state">No tienes citas programadas</div>';
+            }
+            if (notificationsContainer) {
+                notificationsContainer.innerHTML = '<div class="empty-state">No tienes notificaciones</div>';
+            }
+        }
+    } catch (error) {
+        console.error('Error al cargar citas:', error);
+        if (appointmentsContainer) {
+            appointmentsContainer.innerHTML = '<div class="error-state">Error al cargar citas</div>';
+        }
+    }
+}
+
+function crearTarjetaCita(cita) {
+    return `
+        <div class="appointment-item" onclick="verDetalleCita(${cita.id})">
+            <div class="appointment-header">
+                <span class="appointment-time">${cita.hora.substring(0,5)}</span>
+                <span class="appointment-status ${cita.estado}">${cita.estado}</span>
+            </div>
+            <div class="appointment-body">
+                <div class="appointment-pet">🐾 ${cita.mascota_nombre}</div>
+                <div class="appointment-vet">👨‍⚕️ ${cita.veterinario_nombre}</div>
+                <div class="appointment-reason">📋 ${cita.motivo.substring(0,30)}...</div>
+            </div>
+        </div>
+    `;
+}
+
+function crearTarjetaCitaResumida(cita) {
+    return `
+        <div class="upcoming-item" onclick="verDetalleCita(${cita.id})">
+            <span class="upcoming-date">${formatearFecha(cita.fecha)}</span>
+            <span class="upcoming-time">${cita.hora.substring(0,5)}</span>
+            <span class="upcoming-pet">${cita.mascota_nombre}</span>
+        </div>
+    `;
 }
 
 function mostrarMascotas(mascotas) {
@@ -148,7 +143,9 @@ function mostrarMascotas(mascotas) {
                 <h3 class="pet-name">${mascota.nombre}</h3>
                 <p class="pet-details">${mascota.especie} - ${mascota.raza || 'Sin raza'}</p>
                 <p class="pet-age">${mascota.edad ? mascota.edad + ' años' : 'Edad no especificada'}</p>
-                <button class="btn btn-outline ver-historial-btn" data-mascota-id="${mascota.id}">Ver historial</button>
+                <button class="btn btn-outline" onclick="window.location.href='/historial?petId=${mascota.id}'">
+                    Ver historial
+                </button>
             </div>
         `;
     });
@@ -156,24 +153,9 @@ function mostrarMascotas(mascotas) {
     
     petsContainer.innerHTML = html;
     
-    // Habilitar botones de citas
-    const scheduleBtn = document.getElementById('schedule-first-appointment-btn');
-    if (scheduleBtn) scheduleBtn.disabled = false;
-    
-    const modifyBtn = document.getElementById('modify-appointment-btn');
-    if (modifyBtn) modifyBtn.disabled = false;
-    
-    const cancelBtn = document.getElementById('cancel-appointment-btn');
-    if (cancelBtn) cancelBtn.disabled = false;
-    
-    // Configurar botones de historial
-    document.querySelectorAll('.ver-historial-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const mascotaId = this.getAttribute('data-mascota-id');
-            console.log(`📋 Ver historial de mascota ID: ${mascotaId}`);
-            window.location.href = `/historial?petId=${mascotaId}`;
-        });
-    });
+    // Habilitar botones
+    document.getElementById('schedule-first-appointment-btn')?.classList.remove('disabled');
+    document.getElementById('schedule-appointment-btn')?.classList.remove('disabled');
 }
 
 function mostrarEstadoVacioMascotas() {
@@ -181,106 +163,62 @@ function mostrarEstadoVacioMascotas() {
     petsContainer.innerHTML = `
         <div class="empty-state">
             <div class="empty-icon">🐾</div>
-            <h3 class="empty-title">No tienes mascotas registradas</h3>
-            <p class="empty-description">Agrega tu primera mascota para comenzar a gestionar sus citas y cuidados médicos.</p>
-            <button class="btn btn-primary" id="add-first-pet-btn">Agregar mi primera mascota</button>
+            <h3>No tienes mascotas registradas</h3>
+            <p>Agrega tu primera mascota para comenzar</p>
         </div>
     `;
-    
-    // Deshabilitar botones de citas
-    const scheduleBtn = document.getElementById('schedule-first-appointment-btn');
-    if (scheduleBtn) scheduleBtn.disabled = true;
-    
-    const modifyBtn = document.getElementById('modify-appointment-btn');
-    if (modifyBtn) modifyBtn.disabled = true;
-    
-    const cancelBtn = document.getElementById('cancel-appointment-btn');
-    if (cancelBtn) cancelBtn.disabled = true;
-    
-    // Configurar botón de agregar mascota
-    const addFirstPetBtn = document.getElementById('add-first-pet-btn');
-    if (addFirstPetBtn) {
-        addFirstPetBtn.addEventListener('click', function() {
-            alert('Funcionalidad de agregar mascota - En desarrollo');
-        });
-    }
-}
-
-function cargarCitasSimuladas() {
-    const appointmentsContainer = document.getElementById('appointments-container');
-    if (!appointmentsContainer) return;
-    
-    appointmentsContainer.innerHTML = `
-        <div class="empty-state">
-            <div class="empty-icon">📅</div>
-            <h3 class="empty-title">No tienes citas programadas</h3>
-            <p class="empty-description">Una vez que agregues tus mascotas, podrás agendar citas médicas desde aquí.</p>
-        </div>
-    `;
-    
-    const notificationsContainer = document.getElementById('notifications-container');
-    if (notificationsContainer) {
-        notificationsContainer.innerHTML = `
-            <div class="empty-state">
-                <div class="empty-icon">🔔</div>
-                <h3 class="empty-title">No tienes notificaciones nuevas</h3>
-                <p class="empty-description">Recibirás notificaciones sobre vacunas, resultados de exámenes y mensajes de nuestros veterinarios.</p>
-            </div>
-        `;
-    }
 }
 
 function obtenerIconoMascota(especie) {
-    if (!especie) return '🐾';
-    
     const iconos = {
-        'perro': '🐶',
-        'gato': '🐱',
-        'ave': '🦜',
-        'roedor': '🐹',
-        'reptil': '🦎',
-        'conejo': '🐰',
-        'hamster': '🐹',
-        'pez': '🐠',
-        'otro': '🐾'
+        'perro': '🐶', 'gato': '🐱', 'ave': '🦜',
+        'roedor': '🐹', 'reptil': '🦎', 'conejo': '🐰',
+        'pez': '🐠', 'otro': '🐾'
     };
-    
-    const especieLower = especie.toLowerCase();
-    return iconos[especieLower] || '🐾';
+    return iconos[especie?.toLowerCase()] || '🐾';
 }
 
-function configurarEventListeners(usuario) {
-    console.log('🔧 Configurando event listeners...');
+function configurarFechaHora() {
+    const datetimeElement = document.getElementById('current-datetime');
+    if (!datetimeElement) return;
     
-    // Botones de logout
+    function actualizar() {
+        const now = new Date();
+        datetimeElement.textContent = now.toLocaleDateString('es-ES', {
+            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+            hour: '2-digit', minute: '2-digit'
+        });
+    }
+    actualizar();
+    setInterval(actualizar, 60000);
+}
+
+function configurarEventListeners() {
+    // Logout
     document.querySelectorAll('a[href="/login"]').forEach(link => {
         link.addEventListener('click', function(e) {
             e.preventDefault();
-            if (confirm('¿Estás seguro de que quieres cerrar sesión?')) {
-                console.log('👋 Cerrando sesión...');
+            if (confirm('¿Cerrar sesión?')) {
                 localStorage.removeItem('user');
                 window.location.href = '/login';
             }
         });
     });
     
-    // Botón Agendar nueva cita
-    const scheduleBtn = document.getElementById('schedule-appointment-btn');
-    if (scheduleBtn) {
-        scheduleBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            console.log('📅 Redirigiendo a /citas');
-            window.location.href = '/citas';
-        });
-    }
-    
-    // Botón Agregar mascota (en el header)
-    const addPetBtn = document.getElementById('add-pet-btn');
-    if (addPetBtn) {
-        addPetBtn.addEventListener('click', function() {
-            alert('Funcionalidad de agregar mascota - En desarrollo');
-        });
-    }
-    
-    console.log('✅ Event listeners configurados');
+    // Botón Agendar cita
+    document.getElementById('schedule-appointment-btn')?.addEventListener('click', function(e) {
+        e.preventDefault();
+        window.location.href = '/citas';
+    });
 }
+
+function formatearFecha(fecha) {
+    return new Date(fecha).toLocaleDateString('es-ES', {
+        day: '2-digit', month: '2-digit', year: 'numeric'
+    });
+}
+
+// Función global para ver detalle de cita
+window.verDetalleCita = function(citaId) {
+    window.location.href = `/citas?id=${citaId}`;
+};
