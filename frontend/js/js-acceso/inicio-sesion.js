@@ -280,9 +280,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     let mensajeError = data.error;
                     if (data.error.includes('no encontrado')) {
-                        mensajeError = 'Usuario no encontrado. Prueba con: juan, maria, carlos, ana, recepcion';
+                        mensajeError = 'Usuario no encontrado.';
                     } else if (data.error.includes('incorrecta')) {
-                        mensajeError = 'Contraseña incorrecta. La contraseña es: 123456';
+                        mensajeError = 'Contraseña incorrecta. Intente nuevamente.';
                     }
                     
                     showError(modalPassword, passwordError, mensajeError);
