@@ -243,7 +243,7 @@ function renderizarTodasLasCitas(citasPorFecha, fechasOrdenadas) {
                         Ver historial
                     </button>
                     <button class="btn btn-primary register-consultation-btn" data-pet-id="${cita.id_mascota}">
-                        Registrar consulta
+                        Iniciar expediente
                     </button>
                 </div>
             `;
