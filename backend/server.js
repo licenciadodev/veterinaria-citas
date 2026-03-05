@@ -1,4 +1,4 @@
-// backend/server.js - VERSIÓN COMPLETA Y CORREGIDA
+// backend/server.js
 const bcrypt = require('bcryptjs');
 const express = require('express');
 const mysql = require('mysql2');
@@ -397,59 +397,75 @@ app.delete('/api/citas/:id', (req, res) => {
     });
 });
 
-// 14. LOGOUT
+// =============== NUEVAS RUTAS PARA DASHBOARD VETERINARIO ===============
+
+// 14. Obtener citas de hoy para un veterinario específico
+app.get('/api/veterinario/:id/citas/hoy', (req, res) => {
+    const veterinarioId = req.params.id;
+    
+    console.log(`🔍 Buscando citas de hoy para veterinario ID: ${veterinarioId}`);
+    
+    const query = `
+        SELECT c.*, 
+               m.nombre as mascota_nombre, 
+               m.especie as mascota_especie,
+               u.nombre as propietario_nombre,
+               u.telefono as propietario_telefono
+        FROM citas c
+        JOIN mascotas m ON c.id_mascota = m.id
+        JOIN usuarios u ON c.id_propietario = u.id
+        WHERE c.id_veterinario = ? AND c.fecha = CURDATE() AND c.estado != 'cancelada'
+        ORDER BY c.hora
+    `;
+    
+    db.query(query, [veterinarioId], (err, results) => {
+        if (err) {
+            console.error('❌ Error al obtener citas del veterinario:', err);
+            return res.status(500).json({ success: false, error: 'Error al obtener citas' });
+        }
+        
+        console.log(`✅ ${results.length} citas encontradas para hoy`);
+        res.json({ success: true, citas: results });
+    });
+});
+
+// 15. Obtener próximas citas para un veterinario
+app.get('/api/veterinario/:id/citas/proximas', (req, res) => {
+    const veterinarioId = req.params.id;
+    
+    console.log(`🔍 Buscando próximas citas para veterinario ID: ${veterinarioId}`);
+    
+    const query = `
+        SELECT c.*, 
+               m.nombre as mascota_nombre,
+               u.nombre as propietario_nombre
+        FROM citas c
+        JOIN mascotas m ON c.id_mascota = m.id
+        JOIN usuarios u ON c.id_propietario = u.id
+        WHERE c.id_veterinario = ? AND c.fecha > CURDATE() AND c.estado != 'cancelada'
+        ORDER BY c.fecha, c.hora
+        LIMIT 10
+    `;
+    
+    db.query(query, [veterinarioId], (err, results) => {
+        if (err) {
+            console.error('❌ Error al obtener próximas citas:', err);
+            return res.status(500).json({ success: false, error: 'Error al obtener citas' });
+        }
+        
+        console.log(`✅ ${results.length} próximas citas encontradas`);
+        res.json({ success: true, citas: results });
+    });
+});
+
+// 16. LOGOUT
 app.get('/api/logout', (req, res) => {
     res.json({ success: true, message: 'Sesión cerrada' });
 });
 
-// =============== RUTAS HTML ===============
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, '../frontend/html/index.html'));
-});
-
-app.get('/login', (req, res) => {
-    res.sendFile(path.join(__dirname, '../frontend/html/html-acceso/inicio-sesion.html'));
-});
-
-app.get('/registro', (req, res) => {
-    res.sendFile(path.join(__dirname, '../frontend/html/html-acceso/registro.html'));
-});
-
-app.get('/registro-propietario', (req, res) => {
-    res.sendFile(path.join(__dirname, '../frontend/html/html-registros/registro-propietario.html'));
-});
-
-app.get('/registro-recepcionista', (req, res) => {
-    res.sendFile(path.join(__dirname, '../frontend/html/html-registros/registro-recepcionista.html'));
-});
-
-app.get('/registro-veterinario', (req, res) => {
-    res.sendFile(path.join(__dirname, '../frontend/html/html-registros/registro-veterinario.html'));
-});
-
-app.get('/dashboard-propietario', (req, res) => {
-    res.sendFile(path.join(__dirname, '../frontend/html/html-perfiles/dashboard-propietario.html'));
-});
-
-app.get('/dashboard-recepcionista', (req, res) => {
-    res.sendFile(path.join(__dirname, '../frontend/html/html-perfiles/dashboard-recepcionista.html'));
-});
-
-app.get('/dashboard-veterinario', (req, res) => {
-    res.sendFile(path.join(__dirname, '../frontend/html/html-perfiles/dashboard-veterinario.html'));
-});
-
-app.get('/citas', (req, res) => {
-    res.sendFile(path.join(__dirname, '../frontend/html/html-acceso/citas-medicas.html'));
-});
-
-app.get('/historial', (req, res) => {
-    res.sendFile(path.join(__dirname, '../frontend/html/html-acceso/historial-medico.html'));
-});
-
 // =============== RUTAS PARA HISTORIAL CLÍNICO ===============
 
-// Obtener historial de una mascota
+// 17. Obtener historial de una mascota
 app.get('/api/historial/mascota/:idMascota', (req, res) => {
     const idMascota = req.params.idMascota;
     
@@ -491,7 +507,7 @@ app.get('/api/historial/mascota/:idMascota', (req, res) => {
     });
 });
 
-// Obtener una consulta específica
+// 18. Obtener una consulta específica
 app.get('/api/historial/:id', (req, res) => {
     const id = req.params.id;
     
@@ -532,7 +548,7 @@ app.get('/api/historial/:id', (req, res) => {
     });
 });
 
-// Crear nueva entrada en historial
+// 19. Crear nueva entrada en historial
 app.post('/api/historial', [
     body('fecha').isDate().withMessage('Fecha inválida'),
     body('motivo_consulta').trim().notEmpty().withMessage('El motivo es requerido').escape(),
@@ -593,7 +609,7 @@ app.post('/api/historial', [
     });
 });
 
-// Obtener vacunas de una mascota
+// 20. Obtener vacunas de una mascota
 app.get('/api/vacunas/mascota/:idMascota', (req, res) => {
     const idMascota = req.params.idMascota;
     
@@ -614,7 +630,7 @@ app.get('/api/vacunas/mascota/:idMascota', (req, res) => {
     });
 });
 
-// Registrar nueva vacuna
+// 21. Registrar nueva vacuna
 app.post('/api/vacunas', [
     body('nombre').trim().notEmpty().withMessage('Nombre de vacuna requerido'),
     body('fecha_aplicacion').isDate(),
@@ -634,6 +650,51 @@ app.post('/api/vacunas', [
             res.json({ success: true, message: 'Vacuna registrada', id: result.insertId });
         }
     );
+});
+
+// =============== RUTAS HTML ===============
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, '../frontend/html/index.html'));
+});
+
+app.get('/login', (req, res) => {
+    res.sendFile(path.join(__dirname, '../frontend/html/html-acceso/inicio-sesion.html'));
+});
+
+app.get('/registro', (req, res) => {
+    res.sendFile(path.join(__dirname, '../frontend/html/html-acceso/registro.html'));
+});
+
+app.get('/registro-propietario', (req, res) => {
+    res.sendFile(path.join(__dirname, '../frontend/html/html-registros/registro-propietario.html'));
+});
+
+app.get('/registro-recepcionista', (req, res) => {
+    res.sendFile(path.join(__dirname, '../frontend/html/html-registros/registro-recepcionista.html'));
+});
+
+app.get('/registro-veterinario', (req, res) => {
+    res.sendFile(path.join(__dirname, '../frontend/html/html-registros/registro-veterinario.html'));
+});
+
+app.get('/dashboard-propietario', (req, res) => {
+    res.sendFile(path.join(__dirname, '../frontend/html/html-perfiles/dashboard-propietario.html'));
+});
+
+app.get('/dashboard-recepcionista', (req, res) => {
+    res.sendFile(path.join(__dirname, '../frontend/html/html-perfiles/dashboard-recepcionista.html'));
+});
+
+app.get('/dashboard-veterinario', (req, res) => {
+    res.sendFile(path.join(__dirname, '../frontend/html/html-perfiles/dashboard-veterinario.html'));
+});
+
+app.get('/citas', (req, res) => {
+    res.sendFile(path.join(__dirname, '../frontend/html/html-acceso/citas-medicas.html'));
+});
+
+app.get('/historial', (req, res) => {
+    res.sendFile(path.join(__dirname, '../frontend/html/html-acceso/historial-medico.html'));
 });
 
 // =============== REDIRECCIONES ===============
@@ -656,7 +717,13 @@ app.get('/api/rutas', (req, res) => {
             'GET /api/citas/:id',
             'POST /api/citas',
             'POST /api/citas/verificar-disponibilidad',
-            'DELETE /api/citas/:id'
+            'DELETE /api/citas/:id',
+            'GET /api/veterinario/:id/citas/hoy',
+            'GET /api/veterinario/:id/citas/proximas',
+            'GET /api/historial/mascota/:id',
+            'POST /api/historial',
+            'GET /api/vacunas/mascota/:id',
+            'POST /api/vacunas'
         ]
     });
 });
@@ -688,5 +755,11 @@ app.listen(PORT, () => {
     console.log('   • GET /api/citas');
     console.log('   • POST /api/citas');
     console.log('   • DELETE /api/citas/:id');
+    console.log('   • GET /api/veterinario/:id/citas/hoy ✓');
+    console.log('   • GET /api/veterinario/:id/citas/proximas ✓');
+    console.log('   • GET /api/historial/mascota/:id');
+    console.log('   • POST /api/historial');
+    console.log('   • GET /api/vacunas/mascota/:id');
+    console.log('   • POST /api/vacunas');
     console.log('='.repeat(60));
 });
