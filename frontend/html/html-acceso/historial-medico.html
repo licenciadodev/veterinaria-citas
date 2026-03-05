@@ -11,141 +11,184 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Montserrat:wght@700;800&display=swap" rel="stylesheet">
 </head>
 <body>
-    <header class="header" role="banner">
+    <header class="header">
         <div class="container header-container">
             <div class="logo">
-                <a href="/" aria-label="Inicio de LaMascotApp">
-                    <span class="logo-text">La<span class="logo-highlight">Mascot</span>App</span>
-                </a>
+                <a href="/">LaMascotApp</a>
             </div>
-            <button id="mobile-menu-toggle" aria-expanded="false" aria-controls="main-menu" aria-label="Menú de navegación">
-                <span class="hamburger"></span>
-            </button>
-            <nav class="main-nav" role="navigation">
+            <nav class="main-nav">
                 <ul class="nav-list" id="main-menu">
-                    <li class="nav-item"><a href="/" class="nav-link">Inicio</a></li>
-                    <li class="nav-item"><a href="#" class="nav-link">Servicios</a></li>
-                    <li class="nav-item"><a href="/registro" class="nav-link">Regístrese</a></li>
-                    <li class="nav-item"><a href="/login" class="nav-link">Iniciar sesión</a></li>
+                    <!-- El menú se carga dinámicamente según el rol -->
                 </ul>
             </nav>
         </div>
     </header>
 
-    <main class="main-content" role="main">
-        <section class="medical-history-section" aria-labelledby="history-heading">
-            <div class="container history-container">
-                <div class="back-button">
-                    <a href="/dashboard-veterinario" class="btn btn-outline">&larr; Volver al panel</a>
-                </div>
-                
-                <h1 id="history-heading" class="history-title">Historial Médico</h1>
-                
-                <!-- Datos del paciente -->
-                <section class="patient-data-section" aria-labelledby="patient-data-heading">
-                    <h2 id="patient-data-heading" class="section-title">Datos del Paciente</h2>
-                    <div class="patient-card empty-state">
-                        <div class="patient-info">
-                            <p><strong>Nombre de la mascota:</strong> <span id="pet-name">-</span></p>
-                            <p><strong>Nombre del propietario:</strong> <span id="owner-name">-</span></p>
-                            <p><strong>Especie y raza:</strong> <span id="pet-species-breed">-</span></p>
-                            <p><strong>Edad:</strong> <span id="pet-age">-</span></p>
-                        </div>
-                        <div class="patient-icon">
-                            <span>🐾</span>
-                        </div>
-                    </div>
-                </section>
-                
-                <!-- Consultas médicas -->
-                <section class="consultations-section" aria-labelledby="consultations-heading">
-                    <h2 id="consultations-heading" class="section-title">Consultas Médicas</h2>
-                    <div class="consultations-list empty-container" id="consultations-list">
-                        <div class="empty-state">
-                            <div class="empty-icon">📋</div>
-                            <h3 class="empty-title">No hay consultas médicas registradas</h3>
-                            <p class="empty-description">No se han realizado consultas médicas para esta mascota aún. Las consultas aparecerán aquí después de ser registradas por el veterinario.</p>
-                        </div>
-                    </div>
-                </section>
-                
-                <!-- Vacunación -->
-                <section class="vaccinations-section" aria-labelledby="vaccinations-heading">
-                    <h2 id="vaccinations-heading" class="section-title">Vacunación</h2>
-                    <div class="vaccinations-container">
-                        <h3>Vacunas aplicadas</h3>
-                        <div class="table-container">
-                            <table class="vaccines-table">
-                                <thead>
-                                    <tr>
-                                        <th>Vacuna</th>
-                                        <th>Fecha</th>
-                                        <th>Veterinario</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="vaccines-table-body">
-                                    <tr>
-                                        <td colspan="3" class="empty-table-cell">
-                                            <div class="empty-state">
-                                                <p>No hay vacunas registradas para esta mascota.</p>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                        
-                        <div class="next-vaccine">
-                            <h3>Próxima vacuna pendiente</h3>
-                            <p id="next-vaccine-info">-</p>
-                        </div>
-                    </div>
-                </section>
+    <main class="main-content">
+        <div class="container">
+            <div class="page-header">
+                <h1 class="page-title">Historial Médico</h1>
+                <button class="btn btn-primary" id="new-consultation-btn" style="display: none;">+ Nueva Consulta</button>
             </div>
-        </section>
+            
+            <!-- Datos del paciente -->
+            <section class="patient-section" id="patient-section" style="display: none;">
+                <h2>Datos del Paciente</h2>
+                <div class="patient-card">
+                    <div class="patient-info">
+                        <p><strong>Nombre:</strong> <span id="pet-name">-</span></p>
+                        <p><strong>Especie/Raza:</strong> <span id="pet-species">-</span></p>
+                        <p><strong>Edad:</strong> <span id="pet-age">-</span> años</p>
+                        <p><strong>Propietario:</strong> <span id="owner-name">-</span></p>
+                        <p><strong>Teléfono:</strong> <span id="owner-phone">-</span></p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tabs: Historial / Vacunas -->
+            <div class="history-tabs">
+                <button class="tab-btn active" data-tab="historial">Historial de Consultas</button>
+                <button class="tab-btn" data-tab="vacunas">Vacunas</button>
+            </div>
+
+            <!-- Tab: Historial de Consultas -->
+            <div id="historial-tab" class="tab-content active">
+                <div class="historial-list" id="historial-list">
+                    <div class="loading-state">Cargando historial...</div>
+                </div>
+            </div>
+
+            <!-- Tab: Vacunas -->
+            <div id="vacunas-tab" class="tab-content">
+                <div class="vacunas-header">
+                    <h3>Vacunas Aplicadas</h3>
+                    <button class="btn btn-outline" id="new-vaccine-btn">Registrar Vacuna</button>
+                </div>
+                <div class="vacunas-list" id="vacunas-list">
+                    <div class="loading-state">Cargando vacunas...</div>
+                </div>
+            </div>
+        </div>
     </main>
 
-    <footer class="footer" role="contentinfo">
-        <div class="container footer-container">
-            <div class="footer-logo">
-                <a href="/">
-                    <span class="logo-text">La<span class="logo-highlight">Mascot</span>App</span>
-                </a>
-                <p class="footer-description">Cuidado médico veterinario de excelencia</p>
-            </div>
-            <div class="footer-links">
-                <h3 class="footer-title">Enlaces</h3>
-                <ul class="footer-list">
-                    <li><a href="/">Inicio</a></li>
-                    <li><a href="#">Servicios</a></li>
-                    <li><a href="#">Contacto</a></li>
-                    <li><a href="/login">Iniciar sesión</a></li>
-                </ul>
-            </div>
-            <div class="footer-contact">
-                <h3 class="footer-title">Contacto</h3>
-                <ul class="footer-list contact-list">
-                    <li class="contact-item">
-                        <span class="contact-icon" aria-hidden="true">📍</span>
-                        <span>Calle Veterinaria 123, Bogotá</span>
-                    </li>
-                    <li class="contact-item">
-                        <span class="contact-icon" aria-hidden="true">📱</span>
-                        <span>+34 910 123 456</span>
-                    </li>
-                    <li class="contact-item">
-                        <span class="contact-icon" aria-hidden="true">✉️</span>
-                        <span>contacto@lamascotapp.co</span>
-                    </li>
-                </ul>
-            </div>
+    <!-- Modal para nueva consulta -->
+    <div id="consulta-modal" class="modal">
+        <div class="modal-content modal-lg">
+            <span class="modal-close" id="close-consulta-modal">&times;</span>
+            <h2>Registrar Nueva Consulta</h2>
+            
+            <form id="consulta-form">
+                <input type="hidden" id="consulta-mascota-id" name="id_mascota">
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="consulta-fecha">Fecha *</label>
+                        <input type="date" id="consulta-fecha" class="form-input" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="consulta-peso">Peso (kg)</label>
+                        <input type="number" step="0.01" id="consulta-peso" class="form-input">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="consulta-temperatura">Temperatura (°C)</label>
+                        <input type="number" step="0.1" id="consulta-temperatura" class="form-input">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="consulta-motivo">Motivo de la consulta *</label>
+                    <textarea id="consulta-motivo" class="form-input" rows="2" required></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="consulta-sintomas">Síntomas</label>
+                    <textarea id="consulta-sintomas" class="form-input" rows="2"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="consulta-diagnostico">Diagnóstico *</label>
+                    <textarea id="consulta-diagnostico" class="form-input" rows="2" required></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="consulta-tratamiento">Tratamiento *</label>
+                    <textarea id="consulta-tratamiento" class="form-input" rows="2" required></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="consulta-recomendaciones">Recomendaciones</label>
+                    <textarea id="consulta-recomendaciones" class="form-input" rows="2"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>Medicamentos Recetados</label>
+                    <div id="medicamentos-container">
+                        <!-- Los medicamentos se agregan dinámicamente -->
+                    </div>
+                    <button type="button" class="btn btn-outline btn-small" id="add-medicamento">+ Agregar medicamento</button>
+                </div>
+
+                <div class="form-group">
+                    <label for="consulta-proxima-cita">Próxima cita recomendada</label>
+                    <input type="date" id="consulta-proxima-cita" class="form-input">
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">Guardar Consulta</button>
+                    <button type="button" class="btn btn-outline" id="cancel-consulta">Cancelar</button>
+                </div>
+            </form>
         </div>
-        <div class="footer-bottom">
-            <div class="container">
-                <p>&copy; 2025 LaMascotApp. Desarrollado por Jairo Benavides Pasos - Aplicación veterinaria especializada en gestión de citas médicas veterinarias.</p>
-            </div>
+    </div>
+
+    <!-- Modal para ver detalle de consulta -->
+    <div id="detalle-consulta-modal" class="modal">
+        <div class="modal-content">
+            <span class="modal-close" id="close-detalle-modal">&times;</span>
+            <h2>Detalle de Consulta</h2>
+            <div id="detalle-contenido"></div>
         </div>
-    </footer>
+    </div>
+
+    <!-- Modal para nueva vacuna -->
+    <div id="vacuna-modal" class="modal">
+        <div class="modal-content">
+            <span class="modal-close" id="close-vacuna-modal">&times;</span>
+            <h2>Registrar Vacuna</h2>
+            
+            <form id="vacuna-form">
+                <input type="hidden" id="vacuna-mascota-id" name="id_mascota">
+                
+                <div class="form-group">
+                    <label for="vacuna-nombre">Nombre de la vacuna *</label>
+                    <input type="text" id="vacuna-nombre" class="form-input" required>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="vacuna-fecha">Fecha de aplicación *</label>
+                        <input type="date" id="vacuna-fecha" class="form-input" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="vacuna-proxima">Próxima dosis</label>
+                        <input type="date" id="vacuna-proxima" class="form-input">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="vacuna-lote">Lote</label>
+                    <input type="text" id="vacuna-lote" class="form-input">
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">Registrar Vacuna</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
     <script src="/js/js-acceso/historial-medico.js"></script>
 </body>
