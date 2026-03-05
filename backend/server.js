@@ -447,6 +447,195 @@ app.get('/historial', (req, res) => {
     res.sendFile(path.join(__dirname, '../frontend/html/html-acceso/historial-medico.html'));
 });
 
+// =============== RUTAS PARA HISTORIAL CLÍNICO ===============
+
+// Obtener historial de una mascota
+app.get('/api/historial/mascota/:idMascota', (req, res) => {
+    const idMascota = req.params.idMascota;
+    
+    const query = `
+        SELECT h.*, 
+               u.nombre as veterinario_nombre,
+               GROUP_CONCAT(
+                   JSON_OBJECT('nombre', m.nombre, 'dosis', m.dosis, 'frecuencia', m.frecuencia)
+               ) as medicamentos
+        FROM historial_clinico h
+        JOIN usuarios u ON h.id_veterinario = u.id
+        LEFT JOIN medicamentos m ON m.id_historial = h.id
+        WHERE h.id_mascota = ?
+        GROUP BY h.id
+        ORDER BY h.fecha DESC
+    `;
+    
+    db.query(query, [idMascota], (err, results) => {
+        if (err) {
+            console.error('Error al obtener historial:', err);
+            return res.status(500).json({ success: false, error: 'Error al obtener historial' });
+        }
+        
+        // Procesar medicamentos de JSON string a objeto
+        const historial = results.map(row => {
+            if (row.medicamentos) {
+                try {
+                    row.medicamentos = JSON.parse(`[${row.medicamentos}]`);
+                } catch (e) {
+                    row.medicamentos = [];
+                }
+            } else {
+                row.medicamentos = [];
+            }
+            return row;
+        });
+        
+        res.json({ success: true, historial });
+    });
+});
+
+// Obtener una consulta específica
+app.get('/api/historial/:id', (req, res) => {
+    const id = req.params.id;
+    
+    const query = `
+        SELECT h.*, 
+               u.nombre as veterinario_nombre,
+               m.nombre as mascota_nombre,
+               p.nombre as propietario_nombre
+        FROM historial_clinico h
+        JOIN usuarios u ON h.id_veterinario = u.id
+        JOIN mascotas m ON h.id_mascota = m.id
+        JOIN usuarios p ON m.id_propietario = p.id
+        WHERE h.id = ?
+    `;
+    
+    db.query(query, [id], (err, results) => {
+        if (err) {
+            console.error('Error al obtener consulta:', err);
+            return res.status(500).json({ success: false, error: 'Error al obtener consulta' });
+        }
+        if (results.length === 0) {
+            return res.status(404).json({ success: false, error: 'Consulta no encontrada' });
+        }
+        
+        // Obtener medicamentos de esta consulta
+        db.query('SELECT * FROM medicamentos WHERE id_historial = ?', [id], (err2, meds) => {
+            if (err2) {
+                console.error('Error al obtener medicamentos:', err2);
+                return res.json({ success: true, consulta: results[0], medicamentos: [] });
+            }
+            
+            res.json({ 
+                success: true, 
+                consulta: results[0], 
+                medicamentos: meds 
+            });
+        });
+    });
+});
+
+// Crear nueva entrada en historial
+app.post('/api/historial', [
+    body('fecha').isDate().withMessage('Fecha inválida'),
+    body('motivo_consulta').trim().notEmpty().withMessage('El motivo es requerido').escape(),
+    body('diagnostico').trim().notEmpty().withMessage('El diagnóstico es requerido').escape(),
+    body('tratamiento').trim().notEmpty().withMessage('El tratamiento es requerido').escape(),
+    body('id_mascota').isInt().withMessage('ID de mascota inválido'),
+    body('id_veterinario').isInt().withMessage('ID de veterinario inválido')
+], validateRequest, (req, res) => {
+    const { 
+        fecha, motivo_consulta, sintomas, diagnostico, tratamiento, 
+        recomendaciones, peso, temperatura, id_mascota, id_veterinario, proxima_cita,
+        medicamentos 
+    } = req.body;
+    
+    // Insertar historial
+    const insertQuery = `
+        INSERT INTO historial_clinico 
+        (fecha, motivo_consulta, sintomas, diagnostico, tratamiento, recomendaciones, 
+         peso, temperatura, id_mascota, id_veterinario, proxima_cita)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `;
+    
+    db.query(insertQuery, [
+        fecha, motivo_consulta, sintomas || null, diagnostico, tratamiento, 
+        recomendaciones || null, peso || null, temperatura || null, 
+        id_mascota, id_veterinario, proxima_cita || null
+    ], (err, result) => {
+        if (err) {
+            console.error('Error al guardar historial:', err);
+            return res.status(500).json({ success: false, error: 'Error al guardar historial' });
+        }
+        
+        const historialId = result.insertId;
+        
+        // Si hay medicamentos, guardarlos
+        if (medicamentos && medicamentos.length > 0) {
+            const medQueries = medicamentos.map(med => {
+                return new Promise((resolve, reject) => {
+                    db.query(
+                        'INSERT INTO medicamentos (nombre, dosis, frecuencia, duracion, id_historial) VALUES (?, ?, ?, ?, ?)',
+                        [med.nombre, med.dosis, med.frecuencia, med.duracion || null, historialId],
+                        (err) => err ? reject(err) : resolve()
+                    );
+                });
+            });
+            
+            Promise.all(medQueries)
+                .then(() => {
+                    res.json({ success: true, message: 'Historial guardado', id: historialId });
+                })
+                .catch(err => {
+                    console.error('Error al guardar medicamentos:', err);
+                    res.json({ success: true, message: 'Historial guardado (sin medicamentos)', id: historialId });
+                });
+        } else {
+            res.json({ success: true, message: 'Historial guardado', id: historialId });
+        }
+    });
+});
+
+// Obtener vacunas de una mascota
+app.get('/api/vacunas/mascota/:idMascota', (req, res) => {
+    const idMascota = req.params.idMascota;
+    
+    const query = `
+        SELECT v.*, u.nombre as veterinario_nombre
+        FROM vacunas v
+        JOIN usuarios u ON v.id_veterinario = u.id
+        WHERE v.id_mascota = ?
+        ORDER BY v.fecha_aplicacion DESC
+    `;
+    
+    db.query(query, [idMascota], (err, results) => {
+        if (err) {
+            console.error('Error al obtener vacunas:', err);
+            return res.status(500).json({ success: false, error: 'Error al obtener vacunas' });
+        }
+        res.json({ success: true, vacunas: results });
+    });
+});
+
+// Registrar nueva vacuna
+app.post('/api/vacunas', [
+    body('nombre').trim().notEmpty().withMessage('Nombre de vacuna requerido'),
+    body('fecha_aplicacion').isDate(),
+    body('id_mascota').isInt(),
+    body('id_veterinario').isInt()
+], validateRequest, (req, res) => {
+    const { nombre, fecha_aplicacion, fecha_proxima, lote, id_mascota, id_veterinario } = req.body;
+    
+    db.query(
+        'INSERT INTO vacunas (nombre, fecha_aplicacion, fecha_proxima, lote, id_mascota, id_veterinario) VALUES (?, ?, ?, ?, ?, ?)',
+        [nombre, fecha_aplicacion, fecha_proxima || null, lote || null, id_mascota, id_veterinario],
+        (err, result) => {
+            if (err) {
+                console.error('Error al registrar vacuna:', err);
+                return res.status(500).json({ success: false, error: 'Error al registrar vacuna' });
+            }
+            res.json({ success: true, message: 'Vacuna registrada', id: result.insertId });
+        }
+    );
+});
+
 // =============== REDIRECCIONES ===============
 app.get('/index.html', (req, res) => res.redirect('/'));
 app.get('/html-acceso/inicio-sesion.html', (req, res) => res.redirect('/login'));
