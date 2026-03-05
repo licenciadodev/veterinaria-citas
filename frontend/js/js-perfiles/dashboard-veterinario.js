@@ -1,4 +1,4 @@
-// js/js-perfiles/dashboard-veterinario.js - VERSIÓN COMPLETA CORREGIDA
+// js/js-perfiles/dashboard-veterinario.js 
 document.addEventListener('DOMContentLoaded', async function() {
     console.log('=== DASHBOARD VETERINARIO INICIANDO ===');
     console.log('URL:', window.location.href);
@@ -57,8 +57,8 @@ async function cargarDashboard(usuario) {
         // 3. Cargar contadores
         await cargarContadores(usuario.id);
         
-        // 4. Cargar agenda diaria
-        await cargarAgendaDiaria(usuario.id);
+        // 4. Cargar todas las citas del veterinario
+        await cargarTodasLasCitas(usuario.id);
         
         // 5. Configurar búsqueda de pacientes
         configurarBusquedaPacientes();
@@ -114,18 +114,20 @@ function configurarFechaHora() {
 
 async function cargarContadores(veterinarioId) {
     try {
-        const response = await fetch(`/api/veterinario/${veterinarioId}/citas/hoy`);
-        const data = await response.json();
+        // Obtener citas de hoy
+        const responseHoy = await fetch(`/api/veterinario/${veterinarioId}/citas/hoy`);
+        const dataHoy = await responseHoy.json();
         
-        if (data.success) {
-            document.getElementById('today-appointments').textContent = data.citas.length;
-            
-            const proximasResponse = await fetch(`/api/veterinario/${veterinarioId}/citas/proximas`);
-            const proximasData = await proximasResponse.json();
-            
-            if (proximasData.success) {
-                document.getElementById('pending-appointments').textContent = proximasData.citas.length;
-            }
+        // Obtener todas las citas (para contar pendientes)
+        const responseTodas = await fetch(`/api/citas?id_veterinario=${veterinarioId}&estado=programada`);
+        const dataTodas = await responseTodas.json();
+        
+        if (dataHoy.success) {
+            document.getElementById('today-appointments').textContent = dataHoy.citas.length;
+        }
+        
+        if (dataTodas.success) {
+            document.getElementById('pending-appointments').textContent = dataTodas.citas.length;
         }
     } catch (error) {
         console.error('❌ Error al cargar contadores:', error);
@@ -134,67 +136,119 @@ async function cargarContadores(veterinarioId) {
     }
 }
 
-async function cargarAgendaDiaria(veterinarioId) {
+async function cargarTodasLasCitas(veterinarioId) {
     const scheduleContainer = document.getElementById('daily-schedule');
     if (!scheduleContainer) return;
     
     try {
-        const response = await fetch(`/api/veterinario/${veterinarioId}/citas/hoy`);
-        const data = await response.json();
+        console.log(`Cargando todas las citas para veterinario ID: ${veterinarioId}`);
         
-        if (data.success && data.citas.length > 0) {
-            renderizarAgendaDiaria(data.citas);
+        // Obtener todas las citas del veterinario (no solo las de hoy)
+        const response = await fetch(`/api/citas?id_veterinario=${veterinarioId}&estado=programada`);
+        
+        if (!response.ok) {
+            throw new Error(`Error HTTP: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log('Datos recibidos:', data);
+        
+        if (data.success && data.citas && data.citas.length > 0) {
+            console.log(`${data.citas.length} citas encontradas en total`);
+            
+            // Organizar citas por fecha
+            const citasPorFecha = {};
+            
+            data.citas.forEach(cita => {
+                if (!citasPorFecha[cita.fecha]) {
+                    citasPorFecha[cita.fecha] = [];
+                }
+                citasPorFecha[cita.fecha].push(cita);
+            });
+            
+            // Ordenar fechas (más cercanas primero)
+            const fechasOrdenadas = Object.keys(citasPorFecha).sort();
+            
+            // Renderizar todas las citas agrupadas por fecha
+            renderizarTodasLasCitas(citasPorFecha, fechasOrdenadas);
         } else {
+            console.log('No hay citas programadas');
             scheduleContainer.innerHTML = `
                 <div class="empty-state">
                     <div class="empty-icon">📅</div>
-                    <h3 class="empty-title">No hay citas programadas para hoy</h3>
-                    <p class="empty-description">Puedes revisar citas futuras o buscar pacientes en el historial clínico.</p>
+                    <h3 class="empty-title">No tienes citas programadas</h3>
+                    <p class="empty-description">Las citas aparecerán aquí cuando sean agendadas.</p>
                 </div>
             `;
         }
     } catch (error) {
-        console.error('❌ Error al cargar agenda diaria:', error);
+        console.error('❌ Error al cargar citas:', error);
         scheduleContainer.innerHTML = `
             <div class="empty-state">
                 <div class="empty-icon">⚠️</div>
-                <h3 class="empty-title">Error al cargar agenda</h3>
-                <p class="empty-description">No se pudieron cargar las citas de hoy.</p>
+                <h3 class="empty-title">Error al cargar citas</h3>
+                <p class="empty-description">No se pudieron cargar las citas. Intenta nuevamente más tarde.</p>
             </div>
         `;
     }
 }
 
-function renderizarAgendaDiaria(citas) {
+function renderizarTodasLasCitas(citasPorFecha, fechasOrdenadas) {
     const scheduleContainer = document.getElementById('daily-schedule');
     scheduleContainer.innerHTML = '';
     
-    citas.sort((a, b) => a.hora.localeCompare(b.hora));
+    const hoy = new Date().toISOString().split('T')[0];
     
-    citas.forEach(cita => {
-        const appointmentSlot = document.createElement('div');
-        appointmentSlot.className = `appointment-slot`;
-        appointmentSlot.dataset.citaId = cita.id;
-        appointmentSlot.dataset.petId = cita.id_mascota;
+    fechasOrdenadas.forEach(fecha => {
+        const citas = citasPorFecha[fecha];
         
-        appointmentSlot.innerHTML = `
-            <div class="appointment-time">${cita.hora.substring(0,5)}</div>
-            <div class="appointment-owner">${cita.propietario_nombre}</div>
-            <div class="appointment-pet">
-                <span class="appointment-pet-icon">${obtenerIconoMascota(cita.mascota_especie)}</span>
-                ${cita.mascota_nombre}
-            </div>
-            <div class="appointment-reason">Motivo: ${cita.motivo}</div>
-            <div class="appointment-actions">
-                <button class="btn btn-outline view-history-btn" data-pet-id="${cita.id_mascota}">
-                    Ver historial
-                </button>
-                <button class="btn btn-primary register-consultation-btn" data-pet-id="${cita.id_mascota}">
-                    Registrar consulta
-                </button>
-            </div>
-        `;
-        scheduleContainer.appendChild(appointmentSlot);
+        // Crear separador de fecha
+        const fechaDiv = document.createElement('div');
+        fechaDiv.className = 'fecha-separator';
+        
+        let textoFecha = formatearFechaLarga(fecha);
+        if (fecha === hoy) {
+            textoFecha = '🔴 HOY - ' + textoFecha;
+        }
+        
+        fechaDiv.innerHTML = `<h3>${textoFecha}</h3>`;
+        scheduleContainer.appendChild(fechaDiv);
+        
+        // Ordenar citas por hora
+        citas.sort((a, b) => a.hora.localeCompare(b.hora));
+        
+        // Renderizar cada cita
+        citas.forEach(cita => {
+            const appointmentSlot = document.createElement('div');
+            appointmentSlot.className = 'appointment-slot';
+            appointmentSlot.dataset.citaId = cita.id;
+            appointmentSlot.dataset.petId = cita.id_mascota;
+            
+            // Formatear hora (eliminar segundos)
+            const horaFormateada = cita.hora.substring(0,5);
+            
+            // Determinar ícono según especie
+            const icono = obtenerIconoMascota(cita.especie || '');
+            
+            appointmentSlot.innerHTML = `
+                <div class="appointment-time">${horaFormateada}</div>
+                <div class="appointment-owner">${cita.propietario_nombre || 'Propietario no especificado'}</div>
+                <div class="appointment-pet">
+                    <span class="appointment-pet-icon">${icono}</span>
+                    ${cita.mascota_nombre || 'Mascota sin nombre'}
+                </div>
+                <div class="appointment-reason">Motivo: ${cita.motivo || 'No especificado'}</div>
+                <div class="appointment-actions">
+                    <button class="btn btn-outline view-history-btn" data-pet-id="${cita.id_mascota}">
+                        Ver historial
+                    </button>
+                    <button class="btn btn-primary register-consultation-btn" data-pet-id="${cita.id_mascota}">
+                        Registrar consulta
+                    </button>
+                </div>
+            `;
+            scheduleContainer.appendChild(appointmentSlot);
+        });
     });
     
     // Event listeners para los botones
@@ -275,7 +329,7 @@ function configurarEventListeners(usuario) {
     // Botón de cerrar sesión
     configurarLogoutButtons();
     
-    // Navegación del calendario
+    // Navegación del calendario (simplificada)
     const prevBtn = document.querySelector('.calendar-prev');
     const nextBtn = document.querySelector('.calendar-next');
     
@@ -314,7 +368,18 @@ function formatearFecha(fechaString) {
     const fecha = new Date(fechaString);
     return fecha.toLocaleDateString('es-ES', {
         year: 'numeric',
-        month: 'short',
+        month: '2-digit',
+        day: '2-digit'
+    });
+}
+
+function formatearFechaLarga(fechaString) {
+    if (!fechaString) return 'N/A';
+    const fecha = new Date(fechaString);
+    return fecha.toLocaleDateString('es-ES', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
         day: 'numeric'
     });
 }
