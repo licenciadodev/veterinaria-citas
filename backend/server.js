@@ -1,4 +1,4 @@
-// backend/server.js
+// backend/server.js - VERSIÓN COMPLETA Y CORREGIDA
 const bcrypt = require('bcryptjs');
 const express = require('express');
 const mysql = require('mysql2');
@@ -250,7 +250,7 @@ app.get('/api/veterinarios', (req, res) => {
 
 // 9. OBTENER TODAS LAS CITAS (CON FILTROS)
 app.get('/api/citas', (req, res) => {
-    const { id_propietario, id_veterinario, estado, fecha } = req.query;
+    const { id_propietario, id_veterinario, estado, fecha, fecha_desde } = req.query;
     
     let query = `
         SELECT c.*, 
@@ -280,6 +280,10 @@ app.get('/api/citas', (req, res) => {
     if (fecha) {
         query += ' AND c.fecha = ?';
         params.push(fecha);
+    }
+    if (fecha_desde) {
+        query += ' AND c.fecha >= ?';
+        params.push(fecha_desde);
     }
     
     query += ' ORDER BY c.fecha, c.hora';
@@ -385,7 +389,48 @@ app.post('/api/citas', [
     );
 });
 
-// 13. CANCELAR CITA
+// 13. ACTUALIZAR CITA (PUT) - NUEVA RUTA
+app.put('/api/citas/:id', [
+    body('fecha').optional().isDate(),
+    body('hora').optional().matches(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/),
+    body('motivo').optional().trim().escape(),
+    body('id_mascota').optional().isInt(),
+    body('id_veterinario').optional().isInt()
+], validateRequest, (req, res) => {
+    const citaId = req.params.id;
+    const updates = req.body;
+    
+    // Construir query dinámica
+    const fields = [];
+    const values = [];
+    
+    Object.keys(updates).forEach(key => {
+        if (updates[key] !== undefined && key !== 'id_propietario' && key !== 'id') {
+            fields.push(`${key} = ?`);
+            values.push(updates[key]);
+        }
+    });
+    
+    if (fields.length === 0) {
+        return res.status(400).json({ success: false, error: 'No hay campos para actualizar' });
+    }
+    
+    values.push(citaId);
+    const query = `UPDATE citas SET ${fields.join(', ')} WHERE id = ?`;
+    
+    db.query(query, values, (err, result) => {
+        if (err) {
+            console.error('Error al actualizar cita:', err);
+            return res.status(500).json({ success: false, error: 'Error al actualizar la cita' });
+        }
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ success: false, error: 'Cita no encontrada' });
+        }
+        res.json({ success: true, message: 'Cita actualizada exitosamente' });
+    });
+});
+
+// 14. CANCELAR CITA
 app.delete('/api/citas/:id', (req, res) => {
     const citaId = req.params.id;
     
@@ -397,9 +442,14 @@ app.delete('/api/citas/:id', (req, res) => {
     });
 });
 
-// =============== NUEVAS RUTAS PARA DASHBOARD VETERINARIO ===============
+// 15. LOGOUT
+app.get('/api/logout', (req, res) => {
+    res.json({ success: true, message: 'Sesión cerrada' });
+});
 
-// 14. Obtener citas de hoy para un veterinario específico
+// =============== RUTAS PARA DASHBOARD VETERINARIO ===============
+
+// 16. Obtener citas de hoy para un veterinario específico
 app.get('/api/veterinario/:id/citas/hoy', (req, res) => {
     const veterinarioId = req.params.id;
     
@@ -429,7 +479,7 @@ app.get('/api/veterinario/:id/citas/hoy', (req, res) => {
     });
 });
 
-// 15. Obtener próximas citas para un veterinario
+// 17. Obtener próximas citas para un veterinario
 app.get('/api/veterinario/:id/citas/proximas', (req, res) => {
     const veterinarioId = req.params.id;
     
@@ -458,14 +508,35 @@ app.get('/api/veterinario/:id/citas/proximas', (req, res) => {
     });
 });
 
-// 16. LOGOUT
-app.get('/api/logout', (req, res) => {
-    res.json({ success: true, message: 'Sesión cerrada' });
+// 18. Buscar mascotas por término (para la búsqueda del veterinario)
+app.get('/api/mascotas/buscar', (req, res) => {
+    const { termino } = req.query;
+    
+    if (!termino || termino.length < 2) {
+        return res.json({ success: true, mascotas: [] });
+    }
+    
+    const query = `
+        SELECT m.*, u.nombre as propietario_nombre
+        FROM mascotas m
+        JOIN usuarios u ON m.id_propietario = u.id
+        WHERE m.nombre LIKE ? OR u.nombre LIKE ?
+        LIMIT 10
+    `;
+    
+    const searchTerm = `%${termino}%`;
+    db.query(query, [searchTerm, searchTerm], (err, results) => {
+        if (err) {
+            console.error('Error al buscar mascotas:', err);
+            return res.status(500).json({ success: false, error: 'Error al buscar' });
+        }
+        res.json({ success: true, mascotas: results });
+    });
 });
 
 // =============== RUTAS PARA HISTORIAL CLÍNICO ===============
 
-// 17. Obtener historial de una mascota
+// 19. Obtener historial de una mascota
 app.get('/api/historial/mascota/:idMascota', (req, res) => {
     const idMascota = req.params.idMascota;
     
@@ -507,7 +578,7 @@ app.get('/api/historial/mascota/:idMascota', (req, res) => {
     });
 });
 
-// 18. Obtener una consulta específica
+// 20. Obtener una consulta específica
 app.get('/api/historial/:id', (req, res) => {
     const id = req.params.id;
     
@@ -548,7 +619,7 @@ app.get('/api/historial/:id', (req, res) => {
     });
 });
 
-// 19. Crear nueva entrada en historial
+// 21. Crear nueva entrada en historial
 app.post('/api/historial', [
     body('fecha').isDate().withMessage('Fecha inválida'),
     body('motivo_consulta').trim().notEmpty().withMessage('El motivo es requerido').escape(),
@@ -609,7 +680,7 @@ app.post('/api/historial', [
     });
 });
 
-// 20. Obtener vacunas de una mascota
+// 22. Obtener vacunas de una mascota
 app.get('/api/vacunas/mascota/:idMascota', (req, res) => {
     const idMascota = req.params.idMascota;
     
@@ -630,7 +701,7 @@ app.get('/api/vacunas/mascota/:idMascota', (req, res) => {
     });
 });
 
-// 21. Registrar nueva vacuna
+// 23. Registrar nueva vacuna
 app.post('/api/vacunas', [
     body('nombre').trim().notEmpty().withMessage('Nombre de vacuna requerido'),
     body('fecha_aplicacion').isDate(),
@@ -716,10 +787,12 @@ app.get('/api/rutas', (req, res) => {
             'GET /api/citas',
             'GET /api/citas/:id',
             'POST /api/citas',
+            'PUT /api/citas/:id',
             'POST /api/citas/verificar-disponibilidad',
             'DELETE /api/citas/:id',
             'GET /api/veterinario/:id/citas/hoy',
             'GET /api/veterinario/:id/citas/proximas',
+            'GET /api/mascotas/buscar',
             'GET /api/historial/mascota/:id',
             'POST /api/historial',
             'GET /api/vacunas/mascota/:id',
@@ -753,10 +826,14 @@ app.listen(PORT, () => {
     console.log('   • GET /api/mascotas/propietario/:id');
     console.log('   • GET /api/veterinarios');
     console.log('   • GET /api/citas');
+    console.log('   • GET /api/citas/:id');
     console.log('   • POST /api/citas');
+    console.log('   • PUT /api/citas/:id ✓ (NUEVA)');
+    console.log('   • POST /api/citas/verificar-disponibilidad');
     console.log('   • DELETE /api/citas/:id');
-    console.log('   • GET /api/veterinario/:id/citas/hoy ✓');
-    console.log('   • GET /api/veterinario/:id/citas/proximas ✓');
+    console.log('   • GET /api/veterinario/:id/citas/hoy');
+    console.log('   • GET /api/veterinario/:id/citas/proximas');
+    console.log('   • GET /api/mascotas/buscar');
     console.log('   • GET /api/historial/mascota/:id');
     console.log('   • POST /api/historial');
     console.log('   • GET /api/vacunas/mascota/:id');
