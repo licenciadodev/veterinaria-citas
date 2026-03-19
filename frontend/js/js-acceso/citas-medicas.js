@@ -65,6 +65,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         // Verificar si hay una cita para modificar (desde el dashboard)
         const citaAModificar = sessionStorage.getItem('citaAModificar');
         if (citaAModificar) {
+            console.log('Cita a modificar detectada:', citaAModificar);
             sessionStorage.removeItem('citaAModificar');
             await cargarCitaParaEditar(citaAModificar);
         }
@@ -194,16 +195,42 @@ async function verificarDisponibilidad() {
 // Función para cargar una cita y preparar el formulario para edición
 async function cargarCitaParaEditar(citaId) {
     try {
+        console.log('Cargando cita para editar, ID:', citaId);
+        
         const response = await fetch(`/api/citas/${citaId}`);
+        
+        if (!response.ok) {
+            throw new Error(`Error HTTP: ${response.status} - ${response.statusText}`);
+        }
+        
         const data = await response.json();
+        console.log('Datos de cita recibidos:', data);
         
         if (data.success) {
             const cita = data.cita;
             
+            // Formatear la fecha correctamente para input type="date"
+            // La fecha puede venir en formatos diferentes, asegurarnos de extraer solo YYYY-MM-DD
+            let fechaFormateada = cita.fecha;
+            if (cita.fecha) {
+                // Si viene con formato ISO (YYYY-MM-DDTHH:MM:SS), extraer solo la fecha
+                if (cita.fecha.includes('T')) {
+                    fechaFormateada = cita.fecha.split('T')[0];
+                }
+                // Si viene como objeto Date o string largo, asegurar formato
+                else if (cita.fecha.includes('-')) {
+                    // Ya está en formato YYYY-MM-DD probablemente
+                    fechaFormateada = cita.fecha;
+                }
+            }
+            
+            console.log('Fecha original:', cita.fecha);
+            console.log('Fecha formateada:', fechaFormateada);
+            
             // Llenar el formulario con los datos de la cita
             document.getElementById('mascota').value = cita.id_mascota;
             document.getElementById('veterinario').value = cita.id_veterinario;
-            document.getElementById('fecha').value = cita.fecha;
+            document.getElementById('fecha').value = fechaFormateada;
             document.getElementById('hora').value = cita.hora.substring(0,5);
             document.getElementById('motivo').value = cita.motivo;
             
@@ -215,28 +242,40 @@ async function cargarCitaParaEditar(citaId) {
             
             // Guardar el ID de la cita en el formulario
             const form = document.getElementById('appointment-form');
-            if (!form.querySelector('input[name="cita_id"]')) {
-                const input = document.createElement('input');
-                input.type = 'hidden';
-                input.name = 'cita_id';
-                input.value = citaId;
-                form.appendChild(input);
-            }
             
-            // Mostrar mensaje
+            // Eliminar cualquier input hidden previo
+            const oldInput = form.querySelector('input[name="cita_id"]');
+            if (oldInput) oldInput.remove();
+            
+            // Crear nuevo input hidden
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'cita_id';
+            input.value = citaId;
+            form.appendChild(input);
+            
+            // Mostrar mensaje de modo edición
             const mensajeDiv = document.createElement('div');
+            mensajeDiv.id = 'edit-mode-alert';
             mensajeDiv.className = 'alert alert-info';
             mensajeDiv.innerHTML = '✏️ Modo edición: Puedes cambiar los datos de la cita y guardar los cambios.';
             mensajeDiv.style.cssText = 'background: #e3f2fd; color: #1976d2; padding: 10px; border-radius: 8px; margin-bottom: 20px;';
             
             const formSection = document.querySelector('.new-appointment-section');
-            if (formSection && !document.getElementById('edit-mode-alert')) {
-                mensajeDiv.id = 'edit-mode-alert';
+            
+            // Eliminar mensaje anterior si existe
+            const oldAlert = document.getElementById('edit-mode-alert');
+            if (oldAlert) oldAlert.remove();
+            
+            if (formSection) {
                 formSection.insertBefore(mensajeDiv, formSection.firstChild);
             }
+        } else {
+            alert('Error al cargar la cita: ' + (data.error || 'Error desconocido'));
         }
     } catch (error) {
-        console.error('Error al cargar cita para editar:', error);
+        console.error('❌ Error al cargar cita para editar:', error);
+        alert('No se pudo cargar la cita. Verifica que el ID sea correcto. Error: ' + error.message);
     }
 }
 
@@ -246,6 +285,8 @@ async function agendarCita(e) {
     const user = window.currentUser;
     const form = e.target;
     const citaId = form.querySelector('input[name="cita_id"]')?.value;
+    
+    console.log('Cita ID a actualizar:', citaId); // Para depuración
     
     const citaData = {
         fecha: document.getElementById('fecha').value,
@@ -272,6 +313,7 @@ async function agendarCita(e) {
             // Si hay citaId, estamos actualizando
             url = `/api/citas/${citaId}`;
             method = 'PUT';
+            console.log('Enviando PUT a:', url); // Para depuración
         }
         
         const response = await fetch(url, {
@@ -279,6 +321,10 @@ async function agendarCita(e) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(citaData)
         });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
         
         const data = await response.json();
         
@@ -303,7 +349,7 @@ async function agendarCita(e) {
         }
     } catch (error) {
         console.error('Error al agendar cita:', error);
-        alert('Error al conectar con el servidor');
+        alert('Error al conectar con el servidor: ' + error.message);
     }
 }
 
