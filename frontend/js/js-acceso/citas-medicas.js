@@ -62,6 +62,20 @@ document.addEventListener('DOMContentLoaded', async function() {
             }
         });
         
+        // Verificar si hay una cita para modificar (desde el dashboard)
+        const citaAModificar = sessionStorage.getItem('citaAModificar');
+        if (citaAModificar) {
+            sessionStorage.removeItem('citaAModificar');
+            await cargarCitaParaEditar(citaAModificar);
+        }
+        
+        // Verificar si hay ID en la URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const citaId = urlParams.get('id');
+        if (citaId) {
+            await verDetalleCita(citaId);
+        }
+        
     } catch (error) {
         console.error('Error en inicialización:', error);
     }
@@ -177,10 +191,61 @@ async function verificarDisponibilidad() {
     }
 }
 
+// Función para cargar una cita y preparar el formulario para edición
+async function cargarCitaParaEditar(citaId) {
+    try {
+        const response = await fetch(`/api/citas/${citaId}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            const cita = data.cita;
+            
+            // Llenar el formulario con los datos de la cita
+            document.getElementById('mascota').value = cita.id_mascota;
+            document.getElementById('veterinario').value = cita.id_veterinario;
+            document.getElementById('fecha').value = cita.fecha;
+            document.getElementById('hora').value = cita.hora.substring(0,5);
+            document.getElementById('motivo').value = cita.motivo;
+            
+            // Cambiar el texto del botón
+            const submitBtn = document.querySelector('#appointment-form button[type="submit"]');
+            if (submitBtn) {
+                submitBtn.textContent = 'Actualizar Cita';
+            }
+            
+            // Guardar el ID de la cita en el formulario
+            const form = document.getElementById('appointment-form');
+            if (!form.querySelector('input[name="cita_id"]')) {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'cita_id';
+                input.value = citaId;
+                form.appendChild(input);
+            }
+            
+            // Mostrar mensaje
+            const mensajeDiv = document.createElement('div');
+            mensajeDiv.className = 'alert alert-info';
+            mensajeDiv.innerHTML = '✏️ Modo edición: Puedes cambiar los datos de la cita y guardar los cambios.';
+            mensajeDiv.style.cssText = 'background: #e3f2fd; color: #1976d2; padding: 10px; border-radius: 8px; margin-bottom: 20px;';
+            
+            const formSection = document.querySelector('.new-appointment-section');
+            if (formSection && !document.getElementById('edit-mode-alert')) {
+                mensajeDiv.id = 'edit-mode-alert';
+                formSection.insertBefore(mensajeDiv, formSection.firstChild);
+            }
+        }
+    } catch (error) {
+        console.error('Error al cargar cita para editar:', error);
+    }
+}
+
 async function agendarCita(e) {
     e.preventDefault();
     
     const user = window.currentUser;
+    const form = e.target;
+    const citaId = form.querySelector('input[name="cita_id"]')?.value;
     
     const citaData = {
         fecha: document.getElementById('fecha').value,
@@ -200,8 +265,17 @@ async function agendarCita(e) {
     }
     
     try {
-        const response = await fetch('/api/citas', {
-            method: 'POST',
+        let url = '/api/citas';
+        let method = 'POST';
+        
+        if (citaId) {
+            // Si hay citaId, estamos actualizando
+            url = `/api/citas/${citaId}`;
+            method = 'PUT';
+        }
+        
+        const response = await fetch(url, {
+            method: method,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(citaData)
         });
@@ -209,8 +283,20 @@ async function agendarCita(e) {
         const data = await response.json();
         
         if (data.success) {
-            alert('✅ Cita agendada exitosamente');
+            alert(citaId ? '✅ Cita actualizada exitosamente' : '✅ Cita agendada exitosamente');
             limpiarFormulario();
+            
+            // Eliminar el campo oculto si existe
+            if (citaId) {
+                form.querySelector('input[name="cita_id"]')?.remove();
+                const submitBtn = form.querySelector('button[type="submit"]');
+                if (submitBtn) submitBtn.textContent = 'Agendar Cita';
+                
+                // Eliminar mensaje de edición
+                const alertMsg = document.getElementById('edit-mode-alert');
+                if (alertMsg) alertMsg.remove();
+            }
+            
             cargarCitas();
         } else {
             alert('Error: ' + data.error);
@@ -276,6 +362,19 @@ async function cargarCitas() {
 function limpiarFormulario() {
     document.getElementById('appointment-form')?.reset();
     document.querySelectorAll('.form-error').forEach(el => el.textContent = '');
+    
+    // Eliminar mensaje de edición si existe
+    const alertMsg = document.getElementById('edit-mode-alert');
+    if (alertMsg) alertMsg.remove();
+    
+    // Restaurar botón
+    const submitBtn = document.querySelector('#appointment-form button[type="submit"]');
+    if (submitBtn) submitBtn.textContent = 'Agendar Cita';
+    
+    // Eliminar campo oculto
+    const form = document.getElementById('appointment-form');
+    const hiddenInput = form.querySelector('input[name="cita_id"]');
+    if (hiddenInput) hiddenInput.remove();
 }
 
 function formatearFecha(fecha) {
@@ -332,8 +431,8 @@ function mostrarModalCita(cita) {
             
             // Configurar botón de editar
             editBtn.onclick = () => {
-                alert('Funcionalidad de edición en desarrollo');
-                modal.style.display = 'none';
+                sessionStorage.setItem('citaAModificar', cita.id);
+                window.location.href = '/citas';
             };
             
             // Configurar botón de cancelar
