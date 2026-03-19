@@ -297,9 +297,11 @@ app.get('/api/citas', (req, res) => {
     });
 });
 
-// 10. OBTENER CITA POR ID
+// 10. OBTENER CITA POR ID - RUTA CRÍTICA PARA EDICIÓN
 app.get('/api/citas/:id', (req, res) => {
     const citaId = req.params.id;
+    
+    console.log('🔍 Buscando cita ID:', citaId);
     
     const query = `
         SELECT c.*, 
@@ -315,12 +317,13 @@ app.get('/api/citas/:id', (req, res) => {
     
     db.query(query, [citaId], (err, results) => {
         if (err) {
-            console.error('Error al obtener cita:', err);
+            console.error('❌ Error al obtener cita:', err);
             return res.status(500).json({ success: false, error: 'Error al obtener cita' });
         }
         if (results.length === 0) {
             return res.status(404).json({ success: false, error: 'Cita no encontrada' });
         }
+        console.log('✅ Cita encontrada ID:', results[0].id);
         res.json({ success: true, cita: results[0] });
     });
 });
@@ -389,7 +392,7 @@ app.post('/api/citas', [
     );
 });
 
-// 13. ACTUALIZAR CITA (PUT) - NUEVA RUTA
+// 13. ACTUALIZAR CITA (PUT)
 app.put('/api/citas/:id', [
     body('fecha').optional().isDate(),
     body('hora').optional().matches(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/),
@@ -399,6 +402,9 @@ app.put('/api/citas/:id', [
 ], validateRequest, (req, res) => {
     const citaId = req.params.id;
     const updates = req.body;
+    
+    console.log('📝 Recibida solicitud PUT para cita ID:', citaId);
+    console.log('Datos a actualizar:', updates);
     
     // Construir query dinámica
     const fields = [];
@@ -418,14 +424,18 @@ app.put('/api/citas/:id', [
     values.push(citaId);
     const query = `UPDATE citas SET ${fields.join(', ')} WHERE id = ?`;
     
+    console.log('Query:', query);
+    console.log('Values:', values);
+    
     db.query(query, values, (err, result) => {
         if (err) {
-            console.error('Error al actualizar cita:', err);
-            return res.status(500).json({ success: false, error: 'Error al actualizar la cita' });
+            console.error('❌ Error al actualizar cita:', err);
+            return res.status(500).json({ success: false, error: 'Error al actualizar la cita: ' + err.message });
         }
         if (result.affectedRows === 0) {
             return res.status(404).json({ success: false, error: 'Cita no encontrada' });
         }
+        console.log('✅ Cita actualizada exitosamente');
         res.json({ success: true, message: 'Cita actualizada exitosamente' });
     });
 });
@@ -785,7 +795,7 @@ app.get('/api/rutas', (req, res) => {
             'GET /api/mascotas/propietario/:id',
             'GET /api/veterinarios',
             'GET /api/citas',
-            'GET /api/citas/:id',
+            'GET /api/citas/:id',  // ✅ ESTA ES LA RUTA CRÍTICA
             'POST /api/citas',
             'PUT /api/citas/:id',
             'POST /api/citas/verificar-disponibilidad',
@@ -826,9 +836,9 @@ app.listen(PORT, () => {
     console.log('   • GET /api/mascotas/propietario/:id');
     console.log('   • GET /api/veterinarios');
     console.log('   • GET /api/citas');
-    console.log('   • GET /api/citas/:id');
+    console.log('   • GET /api/citas/:id ✅ (RUTA CRÍTICA)');
     console.log('   • POST /api/citas');
-    console.log('   • PUT /api/citas/:id ✓ (NUEVA)');
+    console.log('   • PUT /api/citas/:id');
     console.log('   • POST /api/citas/verificar-disponibilidad');
     console.log('   • DELETE /api/citas/:id');
     console.log('   • GET /api/veterinario/:id/citas/hoy');
