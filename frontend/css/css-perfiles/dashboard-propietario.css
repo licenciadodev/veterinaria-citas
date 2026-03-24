@@ -71,6 +71,256 @@
     margin-bottom: 2.5rem;
 }
 
+/* ===== ESTILOS PARA TARJETAS DE MASCOTAS ===== */
+.pets-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.5rem;
+}
+
+.pet-card {
+    background: white;
+    border-radius: var(--border-radius);
+    padding: 1.5rem;
+    text-align: center;
+    box-shadow: var(--box-shadow);
+    transition: var(--transition);
+    border: 1px solid #e0e3f0;
+}
+
+.pet-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+    border-color: var(--primary-color);
+}
+
+.pet-icon {
+    font-size: 3rem;
+    margin-bottom: 0.8rem;
+}
+
+.pet-name {
+    font-size: 1.3rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: var(--dark-color);
+}
+
+.pet-details {
+    color: var(--gray-color);
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+}
+
+.pet-age {
+    color: var(--gray-color);
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+}
+
+/* ===== ESTILOS PARA CITAS CON SELECTOR (NUEVO) ===== */
+.appointment-item, .upcoming-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 15px;
+    background: white;
+    border-radius: var(--border-radius);
+    padding: 1.2rem;
+    margin-bottom: 1rem;
+    box-shadow: var(--box-shadow);
+    transition: var(--transition);
+    border: 1px solid #e0e3f0;
+    cursor: pointer;
+}
+
+.appointment-item:hover, .upcoming-item:hover {
+    transform: translateX(5px);
+    border-color: var(--primary-color);
+    box-shadow: 0 5px 15px rgba(108, 67, 245, 0.1);
+}
+
+/* Estilo para cita seleccionada */
+.appointment-item.selected, .upcoming-item.selected {
+    background: linear-gradient(135deg, #f0f4ff 0%, #e6e9ff 100%);
+    border-left: 4px solid var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+/* Selector de radio button */
+.appointment-selector {
+    flex-shrink: 0;
+    padding-top: 4px;
+}
+
+.cita-radio {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    accent-color: var(--primary-color);
+    margin: 0;
+}
+
+.cita-label {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+}
+
+/* Contenido de la cita */
+.appointment-content, .upcoming-content {
+    flex: 1;
+}
+
+.appointment-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.8rem;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.appointment-time {
+    font-weight: 600;
+    color: var(--primary-color);
+    font-size: 1.1rem;
+}
+
+.appointment-status {
+    padding: 0.2rem 0.8rem;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.appointment-status.programada {
+    background: #e3f2fd;
+    color: #1976d2;
+}
+
+.appointment-status.confirmada {
+    background: #e8f5e9;
+    color: #388e3c;
+}
+
+.appointment-status.cancelada {
+    background: #ffebee;
+    color: #d32f2f;
+}
+
+.appointment-status.completada {
+    background: #f3e5f5;
+    color: #7b1fa2;
+}
+
+.appointment-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.appointment-pet {
+    font-weight: 600;
+    color: var(--dark-color);
+}
+
+.appointment-vet {
+    color: var(--gray-color);
+    font-size: 0.9rem;
+}
+
+.appointment-reason {
+    color: var(--gray-color);
+    font-size: 0.85rem;
+    font-style: italic;
+}
+
+/* Estilos para citas futuras (resumidas) */
+.upcoming-item {
+    padding: 0.8rem 1rem;
+}
+
+.upcoming-date {
+    font-weight: 600;
+    color: var(--primary-color);
+    min-width: 90px;
+    font-size: 0.9rem;
+}
+
+.upcoming-time {
+    color: var(--gray-color);
+    min-width: 60px;
+    font-size: 0.9rem;
+}
+
+.upcoming-pet {
+    font-weight: 500;
+    color: var(--dark-color);
+    flex: 1;
+}
+
+.upcoming-reason {
+    color: var(--gray-color);
+    font-size: 0.8rem;
+    font-style: italic;
+}
+
+/* Contenedor de citas futuras */
+.upcoming-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+/* Notificaciones */
+.notifications-container {
+    background: white;
+    border-radius: var(--border-radius);
+    padding: 1.5rem;
+    box-shadow: var(--box-shadow);
+}
+
+.notification-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 0.8rem 0;
+    border-bottom: 1px solid #eaeaea;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.notification-item:last-child {
+    border-bottom: none;
+}
+
+.notification-item:hover {
+    transform: translateX(5px);
+}
+
+.notification-icon {
+    font-size: 1.2rem;
+}
+
+.notification-content {
+    flex: 1;
+}
+
+.notification-content strong {
+    color: var(--dark-color);
+    display: block;
+    margin-bottom: 0.2rem;
+}
+
+.notification-content p {
+    color: var(--gray-color);
+    font-size: 0.85rem;
+    margin: 0;
+}
+
+/* ===== ESTILOS EXISTENTES (conservados) ===== */
 .empty-state {
     background: white;
     border-radius: var(--border-radius);
@@ -113,6 +363,15 @@
 .actions-container .btn {
     flex: 1;
     min-width: 200px;
+}
+
+/* Botones deshabilitados */
+.actions-container .btn.disabled,
+.actions-container .btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
 }
 
 .quick-actions-section {
@@ -161,14 +420,7 @@
     font-size: 1.1rem;
 }
 
-.notifications-container {
-    background: white;
-    border-radius: var(--border-radius);
-    padding: 1.5rem;
-    box-shadow: var(--box-shadow);
-}
-
-/* Modal styles */
+/* Modal styles (conservados) */
 .modal {
     display: none;
     position: fixed;
@@ -285,7 +537,7 @@
     flex-wrap: wrap;
 }
 
-/* Responsive adjustments */
+/* ===== RESPONSIVE (conservado y mejorado) ===== */
 @media (max-width: 768px) {
     .form-row {
         flex-direction: column;
@@ -316,6 +568,33 @@
     .empty-state {
         padding: 1.5rem;
     }
+    
+    .pets-grid {
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+        gap: 1rem;
+    }
+    
+    .appointment-item, .upcoming-item {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+    }
+    
+    .appointment-selector {
+        order: 2;
+        display: flex;
+        justify-content: flex-end;
+    }
+    
+    .upcoming-date, .upcoming-time {
+        display: inline-block;
+        margin-right: 0.5rem;
+    }
+    
+    .upcoming-pet {
+        display: block;
+        margin-top: 0.3rem;
+    }
 }
 
 @media (max-width: 480px) {
@@ -335,7 +614,25 @@
         padding: 1.5rem;
     }
     
-    .action-card {
-        height: 130px;
+    .pets-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .greeting-text {
+        font-size: 1.4rem;
+    }
+    
+    .current-datetime {
+        font-size: 0.9rem;
+    }
+    
+    .appointment-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .upcoming-date, .upcoming-time {
+        display: block;
+        margin-bottom: 0.3rem;
     }
 }
