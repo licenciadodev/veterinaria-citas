@@ -59,6 +59,7 @@ async function cargarMascotas(idPropietario) {
     }
 }
 
+// ============= FUNCIÓN PRINCIPAL: CARGAR CITAS =============
 async function cargarCitas(idPropietario) {
     const appointmentsContainer = document.getElementById('appointments-container');
     const upcomingContainer = document.getElementById('upcoming-appointments');
@@ -75,34 +76,65 @@ async function cargarCitas(idPropietario) {
         console.log('Citas cargadas:', data);
         
         if (data.success && data.citas && data.citas.length > 0) {
-            // Guardar todas las citas en una variable global para usarlas después
+            // Guardar todas las citas en una variable global
             window.citasPropietario = data.citas;
             
             // Separar citas de hoy y futuras
             const citasHoy = data.citas.filter(c => c.fecha === hoy);
             const citasFuturas = data.citas.filter(c => c.fecha > hoy);
             
-            // Mostrar citas de hoy
+            // Mostrar citas de hoy (CON RADIO BUTTONS)
             if (citasHoy.length > 0) {
-                appointmentsContainer.innerHTML = citasHoy.map(cita => crearTarjetaCita(cita)).join('');
+                appointmentsContainer.innerHTML = citasHoy.map(cita => `
+                    <div class="appointment-item" data-cita-id="${cita.id}">
+                        <div class="appointment-selector">
+                            <input type="radio" name="citaSeleccionada" value="${cita.id}" id="cita-${cita.id}" class="cita-radio">
+                            <label for="cita-${cita.id}" class="cita-label"></label>
+                        </div>
+                        <div class="appointment-content">
+                            <div class="appointment-header">
+                                <span class="appointment-time">${cita.hora.substring(0,5)}</span>
+                                <span class="appointment-status ${cita.estado}">${cita.estado}</span>
+                            </div>
+                            <div class="appointment-body">
+                                <div class="appointment-pet">🐾 ${cita.mascota_nombre}</div>
+                                <div class="appointment-vet">👨‍⚕️ ${cita.veterinario_nombre}</div>
+                                <div class="appointment-reason">📋 ${cita.motivo.substring(0,30)}...</div>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
             } else {
                 appointmentsContainer.innerHTML = '<div class="empty-state">No tienes citas para hoy</div>';
             }
             
-            // Mostrar próximas citas
+            // Mostrar próximas citas (CON RADIO BUTTONS)
             if (upcomingContainer) {
                 if (citasFuturas.length > 0) {
-                    upcomingContainer.innerHTML = citasFuturas.map(cita => crearTarjetaCitaResumida(cita)).join('');
+                    upcomingContainer.innerHTML = citasFuturas.map(cita => `
+                        <div class="upcoming-item" data-cita-id="${cita.id}">
+                            <div class="appointment-selector">
+                                <input type="radio" name="citaSeleccionada" value="${cita.id}" id="cita-${cita.id}" class="cita-radio">
+                                <label for="cita-${cita.id}" class="cita-label"></label>
+                            </div>
+                            <div class="upcoming-content">
+                                <span class="upcoming-date">${formatearFecha(cita.fecha)}</span>
+                                <span class="upcoming-time">${cita.hora.substring(0,5)}</span>
+                                <span class="upcoming-pet">${cita.mascota_nombre}</span>
+                                <span class="upcoming-reason">${cita.motivo.substring(0,20)}...</span>
+                            </div>
+                        </div>
+                    `).join('');
                 } else {
                     upcomingContainer.innerHTML = '<div class="empty-state">No tienes citas próximas</div>';
                 }
             }
             
-            // Notificaciones (próximas citas)
+            // Notificaciones
             if (notificationsContainer) {
                 if (citasFuturas.length > 0) {
                     notificationsContainer.innerHTML = citasFuturas.slice(0, 3).map(cita => `
-                        <div class="notification-item" onclick="seleccionarCita(${cita.id})">
+                        <div class="notification-item" data-cita-id="${cita.id}">
                             <span class="notification-icon">📅</span>
                             <div class="notification-content">
                                 <strong>${cita.mascota_nombre}</strong> - ${formatearFecha(cita.fecha)} ${cita.hora.substring(0,5)}
@@ -115,8 +147,11 @@ async function cargarCitas(idPropietario) {
                 }
             }
             
-            // Habilitar botones de modificar/cancelar si hay citas
-            habilitarBotonesCitas(true);
+            // Agregar event listeners a los radio buttons
+            agregarEventListenersRadios();
+            
+            // Botones inicialmente deshabilitados
+            habilitarBotonesCitas(false);
         } else {
             appointmentsContainer.innerHTML = '<div class="empty-state">No tienes citas programadas</div>';
             if (upcomingContainer) {
@@ -134,33 +169,125 @@ async function cargarCitas(idPropietario) {
     }
 }
 
-function crearTarjetaCita(cita) {
-    return `
-        <div class="appointment-item" onclick="seleccionarCita(${cita.id})">
-            <div class="appointment-header">
-                <span class="appointment-time">${cita.hora.substring(0,5)}</span>
-                <span class="appointment-status ${cita.estado}">${cita.estado}</span>
-            </div>
-            <div class="appointment-body">
-                <div class="appointment-pet">🐾 ${cita.mascota_nombre}</div>
-                <div class="appointment-vet">👨‍⚕️ ${cita.veterinario_nombre}</div>
-                <div class="appointment-reason">📋 ${cita.motivo.substring(0,30)}...</div>
-            </div>
-        </div>
-    `;
+// ============= FUNCIÓN: AGREGAR EVENT LISTENERS A RADIO BUTTONS =============
+function agregarEventListenersRadios() {
+    const radios = document.querySelectorAll('input[name="citaSeleccionada"]');
+    radios.forEach(radio => {
+        radio.removeEventListener('change', actualizarSeleccion);
+        radio.addEventListener('change', actualizarSeleccion);
+    });
 }
 
-function crearTarjetaCitaResumida(cita) {
-    return `
-        <div class="upcoming-item" onclick="seleccionarCita(${cita.id})">
-            <span class="upcoming-date">${formatearFecha(cita.fecha)}</span>
-            <span class="upcoming-time">${cita.hora.substring(0,5)}</span>
-            <span class="upcoming-pet">${cita.mascota_nombre}</span>
-            <span class="upcoming-reason">${cita.motivo.substring(0,20)}...</span>
-        </div>
-    `;
+// ============= VARIABLE Y FUNCIÓN DE SELECCIÓN =============
+let citaSeleccionadaId = null;
+
+function actualizarSeleccion() {
+    const radios = document.querySelectorAll('input[name="citaSeleccionada"]');
+    let seleccionado = false;
+    
+    radios.forEach(radio => {
+        if (radio.checked) {
+            citaSeleccionadaId = parseInt(radio.value);
+            seleccionado = true;
+            
+            // Quitar clase selected de todos
+            document.querySelectorAll('.appointment-item, .upcoming-item').forEach(el => {
+                el.classList.remove('selected');
+            });
+            
+            // Agregar clase selected al contenedor padre
+            const parent = radio.closest('.appointment-item, .upcoming-item');
+            if (parent) {
+                parent.classList.add('selected');
+            }
+        }
+    });
+    
+    if (seleccionado) {
+        console.log('Cita seleccionada:', citaSeleccionadaId);
+        habilitarBotonesCitas(true);
+    } else {
+        citaSeleccionadaId = null;
+        habilitarBotonesCitas(false);
+    }
 }
 
+function habilitarBotonesCitas(habilitar) {
+    const modifyBtn = document.getElementById('modify-appointment-btn');
+    const cancelBtn = document.getElementById('cancel-appointment-btn');
+    
+    if (modifyBtn) {
+        modifyBtn.disabled = !habilitar;
+        if (habilitar) {
+            modifyBtn.classList.remove('disabled');
+        } else {
+            modifyBtn.classList.add('disabled');
+        }
+    }
+    
+    if (cancelBtn) {
+        cancelBtn.disabled = !habilitar;
+        if (habilitar) {
+            cancelBtn.classList.remove('disabled');
+        } else {
+            cancelBtn.classList.add('disabled');
+        }
+    }
+}
+
+// ============= FUNCIÓN: CANCELAR CITA =============
+window.cancelarCita = async function() {
+    if (!citaSeleccionadaId) {
+        alert('⚠️ Por favor, selecciona una cita haciendo clic en el círculo a la izquierda de la cita que deseas cancelar.');
+        return;
+    }
+    
+    // Buscar los detalles de la cita seleccionada
+    const cita = window.citasPropietario?.find(c => c.id === citaSeleccionadaId);
+    let mensaje = '¿Estás seguro de que quieres cancelar esta cita?';
+    
+    if (cita) {
+        mensaje = `¿Cancelar cita de ${cita.mascota_nombre} el ${formatearFecha(cita.fecha)} a las ${cita.hora.substring(0,5)}?`;
+    }
+    
+    if (!confirm(mensaje)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/citas/${citaSeleccionadaId}`, {
+            method: 'DELETE'
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            alert('✅ Cita cancelada exitosamente');
+            await cargarCitas(window.currentUser.id);
+            citaSeleccionadaId = null;
+            habilitarBotonesCitas(false);
+        } else {
+            alert('Error: ' + data.error);
+        }
+    } catch (error) {
+        console.error('Error al cancelar cita:', error);
+        alert('Error al conectar con el servidor');
+    }
+};
+
+// ============= FUNCIÓN: MODIFICAR CITA =============
+window.modificarCita = function() {
+    if (!citaSeleccionadaId) {
+        alert('⚠️ Por favor, selecciona una cita haciendo clic en el círculo a la izquierda de la cita que deseas modificar.');
+        return;
+    }
+    
+    console.log('Guardando cita a modificar:', citaSeleccionadaId);
+    sessionStorage.setItem('citaAModificar', citaSeleccionadaId);
+    window.location.href = '/citas';
+};
+
+// ============= FUNCIONES DE UTILIDAD =============
 function mostrarMascotas(mascotas) {
     const petsContainer = document.getElementById('pets-container');
     
@@ -194,114 +321,11 @@ function mostrarEstadoVacioMascotas() {
     `;
 }
 
-function habilitarBotonesCitas(habilitar) {
-    const modifyBtn = document.getElementById('modify-appointment-btn');
-    const cancelBtn = document.getElementById('cancel-appointment-btn');
-    
-    if (modifyBtn) {
-        if (habilitar) {
-            modifyBtn.disabled = false;
-            modifyBtn.classList.remove('disabled');
-        } else {
-            modifyBtn.disabled = true;
-            modifyBtn.classList.add('disabled');
-        }
-    }
-    
-    if (cancelBtn) {
-        if (habilitar) {
-            cancelBtn.disabled = false;
-            cancelBtn.classList.remove('disabled');
-        } else {
-            cancelBtn.disabled = true;
-            cancelBtn.classList.add('disabled');
-        }
-    }
-}
-
-// Variable para almacenar la cita seleccionada
-let citaSeleccionadaId = null;
-
-// Función para seleccionar una cita
-window.seleccionarCita = function(citaId) {
-    console.log('Cita seleccionada:', citaId);
-    
-    // Quitar selección anterior
-    document.querySelectorAll('.appointment-item, .upcoming-item, .notification-item').forEach(el => {
-        el.classList.remove('selected');
-    });
-    
-    // Marcar la cita seleccionada
-    const elementos = document.querySelectorAll(`[onclick="seleccionarCita(${citaId})"]`);
-    elementos.forEach(el => {
-        el.classList.add('selected');
-    });
-    
-    citaSeleccionadaId = citaId;
-    
-    // Habilitar botones (ya están habilitados, pero aseguramos)
-    habilitarBotonesCitas(true);
-};
-
-// Función para cancelar cita
-window.cancelarCita = async function() {
-    if (!citaSeleccionadaId) {
-        alert('Por favor, selecciona una cita primero');
-        return;
-    }
-    
-    if (!confirm('¿Estás seguro de que quieres cancelar esta cita?')) {
-        return;
-    }
-    
-    try {
-        const response = await fetch(`/api/citas/${citaSeleccionadaId}`, {
-            method: 'DELETE'
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            alert('✅ Cita cancelada exitosamente');
-            // Recargar citas
-            await cargarCitas(window.currentUser.id);
-            citaSeleccionadaId = null;
-            habilitarBotonesCitas(false);
-        } else {
-            alert('Error: ' + data.error);
-        }
-    } catch (error) {
-        console.error('Error al cancelar cita:', error);
-        alert('Error al conectar con el servidor');
-    }
-};
-
-// Función para modificar cita (redirige a la página de citas con el ID)
-window.modificarCita = function() {
-    if (!citaSeleccionadaId) {
-        alert('Por favor, selecciona una cita primero');
-        return;
-    }
-    
-    console.log('Guardando cita a modificar:', citaSeleccionadaId);
-    
-    // Guardar en sessionStorage que vamos a modificar una cita
-    sessionStorage.setItem('citaAModificar', citaSeleccionadaId);
-    
-    // Redirigir a la página de citas
-    window.location.href = '/citas';
-};
-
 function obtenerIconoMascota(especie) {
     const iconos = {
-        'perro': '🐶', 
-        'gato': '🐱', 
-        'ave': '🦜',
-        'roedor': '🐹', 
-        'reptil': '🦎', 
-        'conejo': '🐰',
-        'pez': '🐠', 
-        'otro': '🐾'
+        'perro': '🐶', 'gato': '🐱', 'ave': '🦜',
+        'roedor': '🐹', 'reptil': '🦎', 'conejo': '🐰',
+        'pez': '🐠', 'otro': '🐾'
     };
     return iconos[especie?.toLowerCase()] || '🐾';
 }
@@ -313,12 +337,8 @@ function configurarFechaHora() {
     function actualizar() {
         const now = new Date();
         datetimeElement.textContent = now.toLocaleDateString('es-ES', {
-            weekday: 'long', 
-            year: 'numeric', 
-            month: 'long', 
-            day: 'numeric',
-            hour: '2-digit', 
-            minute: '2-digit'
+            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+            hour: '2-digit', minute: '2-digit'
         });
     }
     actualizar();
@@ -330,14 +350,14 @@ function configurarEventListeners(userId) {
     document.querySelectorAll('a[href="/login"]').forEach(link => {
         link.addEventListener('click', function(e) {
             e.preventDefault();
-            if (confirm('¿Estás seguro de que quieres cerrar sesión?')) {
+            if (confirm('¿Cerrar sesión?')) {
                 localStorage.removeItem('user');
                 window.location.href = '/login';
             }
         });
     });
     
-    // Botón Agendar nueva cita
+    // Botón Agendar cita
     const scheduleBtn = document.getElementById('schedule-appointment-btn');
     if (scheduleBtn) {
         scheduleBtn.addEventListener('click', function(e) {
@@ -371,20 +391,10 @@ function configurarEventListeners(userId) {
             alert('Funcionalidad de agregar mascota - En desarrollo');
         });
     }
-    
-    // Botón Actualizar mis datos
-    const updateDataBtn = document.getElementById('update-personal-data-btn');
-    if (updateDataBtn) {
-        updateDataBtn.addEventListener('click', function() {
-            alert('Funcionalidad de actualizar datos - En desarrollo');
-        });
-    }
 }
 
 function formatearFecha(fecha) {
     return new Date(fecha).toLocaleDateString('es-ES', {
-        day: '2-digit', 
-        month: '2-digit', 
-        year: 'numeric'
+        day: '2-digit', month: '2-digit', year: 'numeric'
     });
 }
